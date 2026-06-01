@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 public class PaymentVerifyRequest {
     @NotNull(message = "Note id is required")
-
+    private Long noteId;
 
     @NotBlank(message = "Order id is required")
     private String razorpayOrderId;
