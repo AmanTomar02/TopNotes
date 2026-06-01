@@ -15,32 +15,34 @@ import { AuthService } from '../../../core/services/auth.service';
       TopNotes
     </a>
 
-    <div class="ntabs">
-      <a routerLink="/browse"      routerLinkActive="act">Browse</a>
-      @if (auth.isBuyer())  { <a routerLink="/my-purchases" routerLinkActive="act">My Notes</a> }
-      @if (auth.isSeller()) { <a routerLink="/seller/notes" routerLinkActive="act">My Notes</a>
-                              <a routerLink="/seller/upload" routerLinkActive="act">Upload</a> }
-      @if (auth.isAdmin())  { <a routerLink="/admin/verifications" routerLinkActive="act">Verifications</a>
-                              <a routerLink="/admin/test"    routerLinkActive="act">Test Manager</a>
-                              <a routerLink="/admin/users"   routerLinkActive="act">Users</a> }
-    </div>
+    <div class="tools">
+      <div class="ntabs">
+        <a routerLink="/browse"      routerLinkActive="act">Browse</a>
+        @if (auth.isBuyer())  { <a routerLink="/my-purchases" routerLinkActive="act">My Notes</a> }
+        @if (auth.isSeller()) { <a routerLink="/seller/notes" routerLinkActive="act">My Notes</a>
+                                <a routerLink="/seller/upload" routerLinkActive="act">Upload</a> }
+        @if (auth.isAdmin())  { <a routerLink="/admin/verifications" routerLinkActive="act">Verifications</a>
+                                <a routerLink="/admin/test"    routerLinkActive="act">Test Manager</a>
+                                <a routerLink="/admin/users"   routerLinkActive="act">Users</a> }
+      </div>
 
-    <div class="nbtns">
-      @if (!auth.isLoggedIn()) {
-        <a routerLink="/login"    class="ghost">Sign In</a>
-        <a routerLink="/register" class="dark">Get Started</a>
-      } @else {
-        <div class="ua">
-          <div class="av">{{ auth.user()?.fullName?.charAt(0)?.toUpperCase() }}</div>
-          <div class="ud">
-            <div class="udn">{{ auth.user()?.fullName }}</div>
-            <div class="udr">{{ auth.user()?.role }}</div>
-            <hr>
-            <a [routerLink]="dashRoute">Dashboard</a>
-            <button (click)="auth.logout()">Sign Out</button>
+      <div class="nbtns">
+        @if (!auth.isLoggedIn()) {
+          <a routerLink="/login"    class="ghost">Sign In</a>
+          <a routerLink="/register" class="dark">Get Started</a>
+        } @else {
+          <div class="ua">
+            <div class="av">{{ auth.user()?.fullName?.charAt(0)?.toUpperCase() }}</div>
+            <div class="ud">
+              <div class="udn">{{ auth.user()?.fullName }}</div>
+              <div class="udr">{{ auth.user()?.role }}</div>
+              <hr>
+              <a [routerLink]="dashRoute">Dashboard</a>
+              <button (click)="auth.logout()">Sign Out</button>
+            </div>
           </div>
-        </div>
-      }
+        }
+      </div>
     </div>
 
     <button class="hbg" (click)="mob.set(!mob())" [class.open]="mob()">
