@@ -59,6 +59,7 @@ public class SecurityConfig {
                 // ── Public endpoints ───────────────────────
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/health").permitAll()
                 .requestMatchers(HttpMethod.GET,
                         "/notes",
                         "/notes/{id}",
