@@ -30,8 +30,8 @@ public interface TestQuestionRepository extends JpaRepository<TestQuestion, Long
     /** Full-text search across question text — admin search bar. */
     @Query("""
             SELECT q FROM TestQuestion q
-            WHERE LOWER(q.questionText) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(q.subject)      LIKE LOWER(CONCAT('%', :keyword, '%'))
+            WHERE LOWER(q.questionText) LIKE CONCAT('%', :keyword, '%')
+               OR LOWER(q.subject)      LIKE CONCAT('%', :keyword, '%')
             ORDER BY q.displayOrder ASC
             """)
     Page<TestQuestion> searchByKeyword(String keyword, Pageable pageable);

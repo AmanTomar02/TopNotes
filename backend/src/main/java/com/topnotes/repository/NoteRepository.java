@@ -32,8 +32,8 @@ public interface NoteRepository extends JpaRepository<Note, Long> {
     @Query("""
             SELECT n FROM Note n
             WHERE n.status = 'ACTIVE'
-              AND (:keyword  IS NULL OR LOWER(n.title)      LIKE LOWER(CONCAT('%',:keyword,'%'))
-                                    OR LOWER(n.description) LIKE LOWER(CONCAT('%',:keyword,'%')))
+              AND (:keyword = '' OR LOWER(n.title)      LIKE CONCAT('%', :keyword, '%')
+                                OR LOWER(n.description) LIKE CONCAT('%', :keyword, '%'))
               AND (:classLevel IS NULL OR n.classLevel = :classLevel)
               AND (:subject    IS NULL OR n.subject    = :subject)
               AND (:examType   IS NULL OR n.examType   = :examType)

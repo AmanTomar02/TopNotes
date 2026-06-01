@@ -25,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -107,8 +108,9 @@ public class NoteServiceImpl implements NoteService {
                                           ExamType examType,
                                           Pageable pageable,
                                           Long viewerId) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         return noteRepository
-                .searchNotes(keyword, classLevel, subject, examType, pageable)
+                .searchNotes(normalizedKeyword, classLevel, subject, examType, pageable)
                 .map(note -> toResponse(note, viewerId));
     }
 

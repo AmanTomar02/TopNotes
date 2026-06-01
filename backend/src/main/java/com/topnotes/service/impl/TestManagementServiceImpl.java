@@ -21,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Slf4j
@@ -81,7 +82,7 @@ public class TestManagementServiceImpl implements TestManagementService {
     @Transactional(readOnly = true)
     public Page<TestQuestionAdminResponse> getAllQuestions(String keyword, Pageable pageable) {
         Page<TestQuestion> questions = StringUtils.hasText(keyword)
-                ? questionRepository.searchByKeyword(keyword, pageable)
+                ? questionRepository.searchByKeyword(keyword.trim().toLowerCase(Locale.ROOT), pageable)
                 : questionRepository.findAllByOrderByDisplayOrderAsc(pageable);
         return questions.map(this::toAdminResponse);
     }
