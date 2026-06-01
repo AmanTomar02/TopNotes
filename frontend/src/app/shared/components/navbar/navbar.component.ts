@@ -10,8 +10,13 @@ import { AuthService } from '../../../core/services/auth.service';
   template: `
 <nav class="nav" [class.sc]="scrolled()">
   <div class="ni">
+    
     <a routerLink="/browse" class="logo">
-      <div class="lm"><svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <div class="lm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
       TopNotes
     </a>
 
