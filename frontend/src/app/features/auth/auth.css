@@ -1,0 +1,166 @@
+/* ── auth.css — shared by login & register ──────────────────── */
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ── Left panel ─────────────────────────────────────────────── */
+.auth-left {
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 3.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.auth-left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 70% at 80% 30%, rgba(30,107,107,.35), transparent 70%),
+    radial-gradient(ellipse 50% 60% at 5%  80%, rgba(201,168,76,.2),  transparent 60%);
+}
+.al-inner { position: relative; max-width: 400px; }
+
+.al-logo {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 3rem;
+}
+.al-lm {
+  width: 32px; height: 32px;
+  background: var(--gd);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+}
+.al-lm svg { width: 18px; height: 18px; }
+
+.auth-left h1 {
+  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+.auth-left h1 em { color: var(--gd); font-style: normal; }
+.auth-left p { color: rgba(255,255,255,.58); font-size: .92rem; line-height: 1.7; margin-bottom: 2.5rem; }
+
+.al-stats { display: flex; gap: 2.5rem; }
+.al-stats div { display: flex; flex-direction: column; }
+.al-stats strong { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; color: var(--gd); font-weight: 700; display: block; }
+.al-stats span   { font-size: .7rem; color: rgba(255,255,255,.4); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+
+/* ── Right panel ────────────────────────────────────────────── */
+.auth-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 2rem;
+  background: var(--cr);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: var(--shl);
+}
+.auth-card h2 { font-size: 1.8rem; margin-bottom: .3rem; }
+.auth-sub { color: var(--mu); font-size: .85rem; margin-bottom: 1.75rem; }
+
+/* ── Password field ──────────────────────────────────────────── */
+.pw-wrap { position: relative; }
+.pw-wrap .fc { padding-right: 2.8rem; }
+.eye {
+  position: absolute; right: .8rem; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  font-size: .9rem; padding: .2rem; line-height: 1;
+  color: var(--mu); transition: color var(--t);
+}
+.eye:hover { color: var(--ink); }
+
+/* ── Divider ─────────────────────────────────────────────────── */
+.auth-or {
+  display: flex; align-items: center; gap: .75rem;
+  font-size: .8rem; color: var(--mu);
+  margin: 1.25rem 0;
+}
+.auth-or::before,.auth-or::after { content:''; flex:1; height:1px; background:var(--cr3); }
+
+/* ── Footer link ─────────────────────────────────────────────── */
+.auth-footer { display: flex; justify-content: center; gap: .45rem; font-size: .85rem; color: var(--mu); }
+.auth-footer a { color: var(--tl); font-weight: 600; }
+
+/* ── Button spinner ──────────────────────────────────────────── */
+.sp-btn {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Role toggle ─────────────────────────────────────────────── */
+.role-toggle { display: flex; gap: .45rem; }
+.role-btn {
+  flex: 1; padding: .55rem;
+  border: 1.5px solid var(--cr3);
+  border-radius: 10px;
+  background: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: .84rem;
+  cursor: pointer;
+  color: var(--mu);
+  transition: all var(--t);
+  text-align: center;
+  font-weight: 500;
+}
+.role-btn.active {
+  background: var(--ink); color: #fff;
+  border-color: var(--ink);
+  font-weight: 600;
+}
+
+/* ── Register: teal left ─────────────────────────────────────── */
+.auth-left.teal {
+  background: linear-gradient(155deg, var(--tl) 0%, #0f3f3f 100%);
+}
+.auth-left.teal::before {
+  background:
+    radial-gradient(ellipse 60% 60% at 80% 20%, rgba(201,168,76,.2), transparent 70%),
+    radial-gradient(ellipse 50% 50% at 10% 90%, rgba(12,11,20,.3),   transparent 70%);
+}
+
+/* ── Role cards (register left panel) ───────────────────────── */
+.role-cards { display: flex; gap: .85rem; margin-top: 2rem; }
+.rc {
+  flex: 1;
+  background: rgba(255,255,255,.08);
+  border: 1.5px solid rgba(255,255,255,.15);
+  border-radius: 14px;
+  padding: 1.1rem;
+  cursor: pointer;
+  transition: all var(--t);
+}
+.rc.active { background: rgba(255,255,255,.18); border-color: var(--gd); }
+.rc .ri { font-size: 1.5rem; margin-bottom: .4rem; }
+.rc strong { display: block; color: #fff; font-size: .9rem; margin-bottom: .2rem; }
+.rc span   { font-size: .75rem; color: rgba(255,255,255,.5); }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .auth-shell { grid-template-columns: 1fr; }
+  .auth-left  { display: none; }
+  .auth-right { min-height: 100vh; padding: 2rem 1.25rem; }
+}
