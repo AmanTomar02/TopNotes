@@ -9,10 +9,18 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: render
-      - key: DATABASE_URL
+      - key: DB_HOST
         fromDatabase:
           name: topnotes-db
-          property: connectionString
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: topnotes-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: topnotes-db
+          property: database
       - key: DB_USERNAME
         fromDatabase:
           name: topnotes-db
