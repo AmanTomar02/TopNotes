@@ -2,8 +2,8 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
 
 interface VerifStatus { testPassed: boolean; marksheetUploaded: boolean; isVerified: boolean; }
 interface Question { id: number; questionText: string; subject?: string; options: { optionKey: string; optionText: string }[]; }

@@ -2,10 +2,10 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
-import { AuthService } from '../../../core/services/auth.service';
-import { Note } from '../../../core/models';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
+import { AuthService } from '@core/services/auth.service';
+import { Note } from '@core/models';
 
 @Component({
   selector: 'app-browse',
@@ -103,7 +103,7 @@ import { Note } from '../../../core/models';
               <div class="nd">{{ n.description }}</div>
               @if (n.seller) {
                 <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.55rem">
-                  <div style="width:20px;height:20px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700">{{ n.seller.fullName?.charAt(0) }}</div>
+                  <div style="width:20px;height:20px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700">{{ n.seller.fullName.charAt(0) }}</div>
                   <span style="font-size:.75rem;color:var(--mu)">{{ n.seller.fullName }}</span>
                 </div>
               }

@@ -1,9 +1,9 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
-import { Purchase } from '../../../core/models';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
+import { Purchase } from '@core/models';
 
 @Component({
   selector: 'app-my-purchases',

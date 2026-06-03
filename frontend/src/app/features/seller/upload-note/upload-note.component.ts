@@ -2,8 +2,8 @@ import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
 
 @Component({
   selector: 'app-upload-note',

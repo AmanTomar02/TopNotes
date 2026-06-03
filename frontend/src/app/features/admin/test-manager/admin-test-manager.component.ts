@@ -2,8 +2,8 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { environment } from '../../../../environments/environment';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { environment } from '@env/environment';
 
 // ── Local interfaces ──────────────────────────────────────────────
 
