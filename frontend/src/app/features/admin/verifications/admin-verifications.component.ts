@@ -1,10 +1,10 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
-import { User } from '../../../core/models';
-import { environment } from '../../../../environments/environment';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
+import { User } from '@core/models';
+import { environment } from '@env/environment';
 
 @Component({
   selector: 'app-admin-verifications',
@@ -32,7 +32,7 @@ import { environment } from '../../../../environments/environment';
         <div class="vc">
           <!-- Header -->
           <div class="vc-head">
-            <div class="vc-av">{{ s.fullName?.charAt(0) }}</div>
+            <div class="vc-av">{{ s.fullName.charAt(0) }}</div>
             <div style="flex:1">
               <div style="font-weight:700;font-size:1rem">{{ s.fullName }}</div>
               <div style="font-size:.8rem;color:var(--mu)">{{ s.email }}</div>

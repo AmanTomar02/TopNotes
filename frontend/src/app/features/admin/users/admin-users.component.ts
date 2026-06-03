@@ -1,9 +1,9 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
-import { User } from '../../../core/models';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
+import { User } from '@core/models';
 
 @Component({
   selector: 'app-admin-users',
@@ -34,7 +34,7 @@ import { User } from '../../../core/models';
             <tr>
               <td>
                 <div style="display:flex;align-items:center;gap:.55rem">
-                  <div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">{{ u.fullName?.charAt(0) }}</div>
+                  <div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">{{ u.fullName.charAt(0) }}</div>
                   {{ u.fullName }}
                 </div>
               </td>

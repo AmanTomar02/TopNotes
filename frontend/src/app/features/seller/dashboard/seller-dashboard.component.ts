@@ -1,10 +1,10 @@
 import { Component, OnInit, AfterViewInit, signal, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { ApiService } from '../../../core/services/api.service';
-import { AuthService } from '../../../core/services/auth.service';
-import { SellerDashboard, Note } from '../../../core/models';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ApiService } from '@core/services/api.service';
+import { AuthService } from '@core/services/auth.service';
+import { SellerDashboard, Note } from '@core/models';
 
 @Component({
   selector: 'app-seller-dashboard',
@@ -60,7 +60,7 @@ import { SellerDashboard, Note } from '../../../core/models';
     </div>
 
     <!-- Recent notes -->
-    @if (data()!.recentNotes?.length) {
+    @if (data()!.recentNotes.length) {
       <div class="sh">
         <h3 class="st" style="font-size:1.2rem">Recent Notes</h3>
         <a routerLink="/seller/notes" class="btn btn-outline btn-sm">View All →</a>

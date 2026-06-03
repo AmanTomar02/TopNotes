@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { ApiService } from '../../../core/services/api.service';
-import { AuthService } from '../../../core/services/auth.service';
-import { NavbarComponent } from '../../../shared/components/navbar/navbar.component';
-import { Note, PaymentOrder, Review } from '../../../core/models';
+import { ApiService } from '@core/services/api.service';
+import { AuthService } from '@core/services/auth.service';
+import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { Note, PaymentOrder, Review } from '@core/models';
 
 declare const Razorpay: any;
 
@@ -86,7 +86,7 @@ declare const Razorpay: any;
           }
           @if (note()!.seller) {
             <div style="display:flex;align-items:center;gap:.7rem;background:var(--cr);border-radius:12px;padding:.8rem;margin-bottom:.9rem">
-              <div style="width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0">{{ note()!.seller!.fullName?.charAt(0) }}</div>
+              <div style="width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0">{{ note()!.seller!.fullName.charAt(0) }}</div>
               <div><div style="font-weight:700;font-size:.88rem">{{ note()!.seller!.fullName }}</div><div style="font-size:.75rem;color:var(--mu)">{{ note()!.seller!.institution || note()!.seller!.classLevel }}</div></div>
             </div>
           }
