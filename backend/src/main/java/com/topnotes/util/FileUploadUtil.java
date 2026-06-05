@@ -2,6 +2,7 @@ package com.topnotes.util;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.topnotes.config.CloudinaryProperties;
 import com.topnotes.exception.BadRequestException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,22 +24,16 @@ public class FileUploadUtil {
     private static final List<String> ALLOWED_PDF_TYPES   = List.of("application/pdf");
     private static final List<String> ALLOWED_IMAGE_TYPES = List.of("image/jpeg", "image/png", "image/webp");
 
-    /** ✨ FAIL-PROOF INSTANCE RESOLVER: Direct OS Environment compilation */
-    private Cloudinary getCloudinaryInstance() {
-        String cloudName = System.getenv("CLOUDINARY_CLOUD_NAME");
-        String apiKey    = System.getenv("CLOUDINARY_API_KEY");
-        String apiSecret = System.getenv("CLOUDINARY_API_SECRET");
+    private static final String CLOUDINARY_NOT_CONFIGURED =
+            "File storage is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, "
+                    + "and CLOUDINARY_API_SECRET on the server.";
 
-        if (cloudName == null || apiKey == null || apiSecret == null) {
-            log.error("CRITICAL: Cloudinary environment keys are completely missing from the server environment!");
-        }
+    private final Cloudinary cloudinary;
+    private final CloudinaryProperties cloudinaryProperties;
 
-        return new Cloudinary(ObjectUtils.asMap(
-            "cloud_name", cloudName,
-            "api_key",    apiKey,
-            "api_secret", apiSecret,
-            "secure",     true
-        ));
+    public FileUploadUtil(Cloudinary cloudinary, CloudinaryProperties cloudinaryProperties) {
+        this.cloudinary = cloudinary;
+        this.cloudinaryProperties = cloudinaryProperties;
     }
 
     /** Validates and stores a PDF to Cloudinary. Returns secure web URL. */
@@ -82,19 +77,30 @@ public class FileUploadUtil {
         log.debug("Cloudinary automated asset lifecycle managed online for: {}", relativeUrl);
     }
 
-    // ── Internal Cloudinary upload engine ────────────────────────
+    private void ensureCloudinaryConfigured() {
+        if (!cloudinaryProperties.isConfigured()) {
+            log.error("Cloudinary credentials are missing from the server environment");
+            throw new BadRequestException(CLOUDINARY_NOT_CONFIGURED);
+        }
+    }
+
     private String uploadToCloudinary(MultipartFile file, String folder, String resourceType) throws IOException {
+        ensureCloudinaryConfigured();
+
         Map params = ObjectUtils.asMap(
-            "folder", folder,
-            "resource_type", resourceType
+                "folder", folder,
+                "resource_type", resourceType
         );
-        
-        // Dynamic generation right before the secure push stream
-        Cloudinary cloudinary = getCloudinaryInstance();
-        Map uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
-        String secureUrl = (String) uploadResult.get("secure_url");
-        log.info("Successfully pushed asset to Cloudinary. Remote URL -> {}", secureUrl);
-        return secureUrl;
+
+        try {
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), params);
+            String secureUrl = (String) uploadResult.get("secure_url");
+            log.info("Successfully pushed asset to Cloudinary. Remote URL -> {}", secureUrl);
+            return secureUrl;
+        } catch (RuntimeException e) {
+            log.error("Cloudinary upload failed: {}", e.getMessage());
+            throw new BadRequestException("Failed to upload file to storage: " + e.getMessage());
+        }
     }
 
     private void validateFile(MultipartFile file, List<String> allowedTypes, long maxSize, String typeName) {
