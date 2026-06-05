@@ -2,25 +2,19 @@ package com.topnotes.config;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class CloudinaryConfig {
 
-    // Direct system keys ko bina fallback filters ke bound karega
-    @Value("${CLOUDINARY_CLOUD_NAME}")
-    private String cloudName;
-
-    @Value("${CLOUDINARY_API_KEY}")
-    private String apiKey;
-
-    @Value("${CLOUDINARY_API_SECRET}")
-    private String apiSecret;
-
     @Bean
     public Cloudinary cloudinary() {
+        // Safe check: Agar variables nahi milenge toh empty text pass hoga, application crash nahi hogi
+        String cloudName = System.getenv("CLOUDINARY_CLOUD_NAME") != null ? System.getenv("CLOUDINARY_CLOUD_NAME") : "";
+        String apiKey    = System.getenv("CLOUDINARY_API_KEY") != null ? System.getenv("CLOUDINARY_API_KEY") : "";
+        String apiSecret = System.getenv("CLOUDINARY_API_SECRET") != null ? System.getenv("CLOUDINARY_API_SECRET") : "";
+
         return new Cloudinary(ObjectUtils.asMap(
             "cloud_name", cloudName,
             "api_key",    apiKey,
