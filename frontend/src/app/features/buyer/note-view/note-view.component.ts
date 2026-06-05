@@ -1,158 +1,114 @@
-import { Component, OnInit, OnDestroy, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { Note } from '@core/models';
 
+/**
+ * Full-screen secure reader. Loads the PDF as a blob (so the URL isn't a direct link),
+ * renders it inside the viewer with a per-user watermark overlay. Outside the app shell.
+ * NOTE: true copy-protection must be server-side (see FRONTEND_AUDIT.md) — this mirrors the design.
+ */
 @Component({
   selector: 'app-note-view',
   standalone: true,
-  imports: [CommonModule, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink],
   template: `
-<div class="viewer-shell" oncontextmenu="return false">
-
-  <!-- Top bar -->
-  <div class="vt">
-    <button class="btn btn-sm" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.15)" (click)="goBack()">← Back</button>
-    <div class="vt-title">{{ title() }}</div>
-    <div class="vt-badge">🔒 Secure View</div>
-  </div>
-
-  <!-- PDF area -->
-  <div class="v-body" #body>
-    <!-- Watermark layer -->
-    <div class="wm-layer" id="wml"></div>
-
-    @if (loading()) {
-      <div class="v-center">
-        <div class="sp" style="border-top-color:#fff;width:44px;height:44px;border-width:3px"></div>
-        <p style="color:rgba(255,255,255,.55);margin-top:1rem;font-size:.9rem">Loading your notes securely…</p>
+    <div class="viewer">
+      <div class="viewer-top">
+        <a class="vt-close" routerLink="/my-purchases" aria-label="Close viewer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+        </a>
+        <span class="vt-title">{{ note()?.title || 'Loading…' }}</span>
+        <span class="vt-protected">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" />
+          </svg>
+          Protected content
+        </span>
+        @if (note()?.totalPages) {
+          <span class="vt-page">{{ note()?.totalPages }} pages</span>
+        }
       </div>
-    } @else if (error()) {
-      <div class="v-center">
-        <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
-        <h3 style="color:#fff;margin-bottom:.5rem">Access Denied</h3>
-        <p style="color:rgba(255,255,255,.55);font-size:.88rem">{{ error() }}</p>
-        <button class="btn btn-outline" style="margin-top:1.25rem;color:#fff;border-color:rgba(255,255,255,.3)" (click)="goBack()">Go Back</button>
+
+      <div class="viewer-stage" oncontextmenu="return false">
+        @if (loading()) {
+          <div style="color:rgba(255,255,255,.6);margin-top:80px;">Loading secure document…</div>
+        } @else if (error()) {
+          <div style="color:rgba(255,255,255,.7);margin-top:80px;text-align:center;">
+            <p>Couldn't load this note.</p>
+            <a class="btn btn-secondary" routerLink="/my-purchases" style="margin-top:12px;">Back to My Purchases</a>
+          </div>
+        } @else {
+          @if (pdfUrl(); as url) {
+            <div style="position:relative;width:min(820px,100%);height:100%;">
+              <iframe
+                [src]="url"
+                title="Note document"
+                style="width:100%;height:100%;border:none;border-radius:6px;background:#fff;"
+              ></iframe>
+              <div class="watermark">
+                @for (m of marks; track $index) {
+                  <span>{{ watermarkText() }}</span>
+                }
+              </div>
+            </div>
+          }
+        }
       </div>
-    } @else if (pdfUrl()) {
-      <iframe
-        [src]="pdfUrl()!"
-        class="pdf-frame"
-        sandbox="allow-scripts allow-same-origin"
-        allow="fullscreen"
-        title="{{ title() }}">
-      </iframe>
-      <!-- Protect overlay: blocks right-click but doesn't block scrolling -->
-      <div class="protect-layer" (contextmenu)="block($event)"></div>
-    }
-  </div>
-
-  <!-- Footer -->
-  <div class="vf">
-    <span>📱 Screenshots watermarked with your account ID</span>
-    <span>⛔ Downloading is disabled</span>
-    <span>🔐 Session-encrypted content</span>
-    <span id="vf-id">Viewing as: {{ userLabel }}</span>
-  </div>
-
-</div>
+    </div>
   `,
-  styles: [`
-    .viewer-shell { min-height:100vh; background:#12111d; display:flex; flex-direction:column; user-select:none; -webkit-user-select:none; }
-
-    .vt { display:flex; align-items:center; justify-content:space-between; padding:.75rem 1.5rem; background:#0c0b14; border-bottom:1px solid rgba(255,255,255,.07); gap:1rem; }
-    .vt-title { font-family:'Cormorant Garamond',serif; font-size:.95rem; color:#fff; flex:1; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .vt-badge { font-size:.72rem; color:#c9a84c; background:rgba(201,168,76,.1); border:1px solid rgba(201,168,76,.22); padding:.22rem .72rem; border-radius:100px; white-space:nowrap; }
-
-    .v-body { flex:1; position:relative; overflow:hidden; min-height:calc(100vh - 130px); background:#1a1828; }
-
-    .wm-layer { position:absolute; inset:0; z-index:10; pointer-events:none; display:grid; grid-template-columns:repeat(5,1fr); gap:2rem; padding:1rem; transform:rotate(-22deg) scale(1.5); opacity:.05; overflow:hidden; }
-
-    .pdf-frame { position:absolute; inset:0; width:100%; height:100%; border:none; z-index:5; }
-    .protect-layer { position:absolute; inset:0; z-index:20; pointer-events:none; }
-
-    .v-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-
-    .vf { display:flex; align-items:center; justify-content:center; gap:2rem; padding:.75rem 1.5rem; background:#0c0b14; border-top:1px solid rgba(255,255,255,.07); font-size:.72rem; color:rgba(255,255,255,.35); flex-wrap:wrap; }
-
-    @media print { .viewer-shell { display:none !important; } }
-  `]
 })
-export class NoteViewComponent implements OnInit, OnDestroy {
-  pdfUrl  = signal<SafeResourceUrl | null>(null);
-  title   = signal('');
-  loading = signal(true);
-  error   = signal('');
-  userLabel = '';
+export class NoteViewComponent {
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private sanitizer = inject(DomSanitizer);
+  private destroyRef = inject(DestroyRef);
+
+  protected note = signal<Note | null>(null);
+  protected pdfUrl = signal<SafeResourceUrl | null>(null);
+  protected loading = signal(true);
+  protected error = signal(false);
+  protected marks = Array.from({ length: 40 });
+
+  private id = Number(this.route.snapshot.paramMap.get('id'));
   private objectUrl: string | null = null;
 
-  constructor(
-    private route:     ActivatedRoute,
-    private router:    Router,
-    private api:       ApiService,
-    private auth:      AuthService,
-    private sanitizer: DomSanitizer
-  ) {}
+  protected watermarkText = computed(() => `${this.auth.user()?.email ?? 'TopNotes'} · TopNotes`);
 
-  ngOnInit() {
-    const user = this.auth.user();
-    this.userLabel = `${user?.email} · ID:${user?.userId}`;
+  constructor() {
+    document.body.classList.add('viewer-body');
 
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    this.api
+      .getNote(this.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (r) => this.note.set(r.data), error: () => {} });
 
-    this.api.getNote(id).subscribe({
-      next: res => {
-        if (!res.success) { this.error.set('Note not found.'); this.loading.set(false); return; }
-        if (!res.data.isPurchased) { this.error.set('Please purchase this note to view it.'); this.loading.set(false); return; }
-        this.title.set(res.data.title);
-        this.loadPdf(id);
-      },
-      error: () => { this.error.set('Failed to load note.'); this.loading.set(false); }
-    });
+    this.api
+      .getNotePdf(this.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (blob) => {
+          this.objectUrl = URL.createObjectURL(blob);
+          this.pdfUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(this.objectUrl));
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loading.set(false);
+          this.error.set(true);
+        },
+      });
 
-    document.addEventListener('keydown', this.handleKey);
-  }
-
-  ngOnDestroy() {
-    document.removeEventListener('keydown', this.handleKey);
-    if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
-  }
-
-  private loadPdf(id: number) {
-    this.api.getNotePdf(id).subscribe({
-      next: blob => {
-        if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
-        this.objectUrl = URL.createObjectURL(blob);
-        this.pdfUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(this.objectUrl));
-        this.loading.set(false);
-        this.buildWatermark();
-      },
-      error: () => {
-        this.error.set('Could not open this note. Please refresh and try again.');
-        this.loading.set(false);
-      }
+    this.destroyRef.onDestroy(() => {
+      document.body.classList.remove('viewer-body');
+      if (this.objectUrl) URL.revokeObjectURL(this.objectUrl);
     });
   }
-
-  private handleKey = (e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && ['p','s','u'].includes(e.key.toLowerCase())) {
-      e.preventDefault(); e.stopPropagation();
-    }
-    if (e.key === 'F12') e.preventDefault();
-  };
-
-  private buildWatermark() {
-    setTimeout(() => {
-      const el = document.getElementById('wml');
-      if (el) el.innerHTML = Array(40).fill(
-        `<div style="color:#fff;font-size:.68rem;font-weight:700;white-space:nowrap;letter-spacing:.12em;text-transform:uppercase">TopNotes · ${this.userLabel}</div>`
-      ).join('');
-    }, 100);
-  }
-
-  block(e: Event) { e.preventDefault(); return false; }
-  goBack() { this.router.navigate(['/notes', this.route.snapshot.paramMap.get('id')]); }
 }

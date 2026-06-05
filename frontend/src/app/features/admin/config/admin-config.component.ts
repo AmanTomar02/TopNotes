@@ -1,157 +1,157 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { forkJoin } from 'rxjs';
 import { ApiService } from '@core/services/api.service';
+import { ToastService } from '@core/services/toast.service';
 
 @Component({
   selector: 'app-admin-config',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container page-body" style="max-width:860px">
-
-  <div class="sh"><h2 class="st">Platform Configuration</h2></div>
-
-  <!-- Revenue split card -->
-  <div class="cfg-card">
-    <div class="cfg-left">
-      <h3>Revenue Split</h3>
-      <p>Configure how revenue is distributed between the platform and sellers. Changes take effect immediately — no server restart required.</p>
-      <div class="split-summary">
-        <div class="split-label">
-          <span>Platform</span><strong>{{ platformPct }}%</strong>
-        </div>
-        <div class="split-bar">
-          <div class="split-fill" [style.width.%]="platformPct"></div>
-        </div>
-        <div class="split-label">
-          <span>Seller</span><strong>{{ 100 - platformPct }}%</strong>
-        </div>
+    <div class="page-head">
+      <div>
+        <div class="crumb">Admin</div>
+        <h1>Platform config</h1>
+        <p>Global settings for the marketplace.</p>
       </div>
     </div>
-    <div class="cfg-right">
-      <div class="fg">
-        <label class="fl">Platform Commission (%)</label>
-        <input class="fc" type="number" [(ngModel)]="platformPct" min="1" max="99" (ngModelChange)="onCommissionChange()">
-        <small style="font-size:.73rem;color:var(--mu);margin-top:.25rem;display:block">Seller gets {{ 100 - platformPct }}%</small>
-      </div>
-      <button class="btn btn-primary" (click)="saveCommission()" [disabled]="saving()">
-        {{ saving() ? 'Saving…' : 'Save Changes' }}
-      </button>
-      @if (savedMsg()) { <div class="alert alert-success" style="margin-top:.6rem;margin-bottom:0">{{ savedMsg() }}</div> }
-    </div>
-  </div>
 
-  <!-- Other settings -->
-  <div class="cfg-card" style="margin-top:1.25rem">
-    <div style="grid-column:span 2">
-      <h3 style="margin-bottom:1.1rem">Other Platform Settings</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1.5rem">
-        @for (item of otherConfigs; track item.key) {
-          <div class="fg">
-            <label class="fl">{{ item.label }}</label>
-            <input class="fc" [(ngModel)]="item.value" [type]="item.type || 'text'" [placeholder]="item.placeholder || ''">
-            @if (item.hint) { <small style="font-size:.73rem;color:var(--mu);margin-top:.2rem;display:block">{{ item.hint }}</small> }
+    @if (loading()) {
+      <div class="skel" style="height:240px;border-radius:12px;max-width:680px"></div>
+    } @else {
+      <div style="max-width:680px;">
+        <div class="card card-pad" style="margin-bottom:20px;">
+          <h3 style="font-size:var(--t-16);">Revenue split</h3>
+          <p class="cr-help" style="margin-top:4px;">
+            How sale revenue is divided between the platform and the seller. Always sums to 100%.
+          </p>
+          <div class="split-bar">
+            <div class="sb-platform" [style.width.%]="platform()">{{ platform() }}%</div>
+            <div class="sb-seller" [style.width.%]="100 - platform()">{{ 100 - platform() }}%</div>
           </div>
-        }
+          <div style="display:flex;align-items:center;gap:14px;">
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"
+              ><span style="width:12px;height:12px;border-radius:3px;background:var(--indigo-700);"></span
+              >Platform</span
+            >
+            <input
+              type="range"
+              min="5"
+              max="60"
+              step="1"
+              [value]="platform()"
+              (input)="platform.set(+$any($event.target).value)"
+              style="flex:1;accent-color:var(--indigo-700);"
+            />
+            <span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;"
+              ><span style="width:12px;height:12px;border-radius:3px;background:var(--amber);"></span>Seller</span
+            >
+          </div>
+          <div style="margin-top:18px;">
+            <button class="btn btn-primary" [attr.data-loading]="savingSplit() ? '1' : null" (click)="saveSplit()">
+              <span class="btn-spin"></span><span>Save split</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="card card-pad">
+          <div class="config-row">
+            <div>
+              <div class="cr-label">Currency</div>
+              <div class="cr-help">Display and payout currency.</div>
+            </div>
+            <div class="cr-control">
+              <select class="select" [value]="currency()" (change)="currency.set($any($event.target).value)">
+                <option value="INR">₹ INR — Indian Rupee</option>
+                <option value="USD">$ USD — US Dollar</option>
+              </select>
+            </div>
+          </div>
+          <div class="config-row">
+            <div>
+              <div class="cr-label">Test pass score</div>
+              <div class="cr-help">Minimum score sellers need on the academic test.</div>
+            </div>
+            <div class="cr-control">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <input
+                  class="input"
+                  type="number"
+                  [value]="passScore()"
+                  (input)="passScore.set(+$any($event.target).value)"
+                  style="width:90px;"
+                /><span class="slate">%</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:18px;">
+            <button class="btn btn-primary" [attr.data-loading]="savingOther() ? '1' : null" (click)="saveOther()">
+              <span class="btn-spin"></span><span>Save changes</span>
+            </button>
+          </div>
+        </div>
       </div>
-      <button class="btn btn-outline btn-sm" (click)="saveOtherConfigs()" [disabled]="saving()">Save All Settings</button>
-    </div>
-  </div>
-
-  <!-- Config table -->
-  <div style="margin-top:1.25rem">
-    <h3 style="font-size:1rem;margin-bottom:1rem">All Configuration Keys</h3>
-    <div class="tw">
-      <table>
-        <thead><tr><th>Key</th><th>Value</th></tr></thead>
-        <tbody>
-          @for (entry of configEntries(); track entry.key) {
-            <tr>
-              <td><code style="font-size:.8rem;background:var(--cr2);padding:.15rem .4rem;border-radius:4px">{{ entry.key }}</code></td>
-              <td style="font-weight:600">{{ entry.value }}</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-</div>
-</div>
+    }
   `,
-  styles: [`
-    .cfg-card { background:#fff; border-radius:20px; padding:1.75rem; box-shadow:var(--sh); display:grid; grid-template-columns:1fr 1fr; gap:2rem; }
-    .cfg-left h3 { margin-bottom:.45rem; font-size:1.1rem; }
-    .cfg-left p  { color:var(--mu); font-size:.84rem; line-height:1.65; margin-bottom:1.25rem; }
-    .split-summary { background:var(--cr2); border-radius:12px; padding:1rem; }
-    .split-label { display:flex; justify-content:space-between; font-size:.84rem; margin-bottom:.45rem; }
-    .split-label strong { font-weight:700; }
-    .split-bar { height:10px; background:var(--cr3); border-radius:5px; overflow:hidden; }
-    .split-fill { height:100%; background:linear-gradient(90deg, var(--ink), var(--ink2)); border-radius:5px; transition:width .3s ease; }
-    @media(max-width:700px) { .cfg-card { grid-template-columns:1fr; } }
-  `]
 })
-export class AdminConfigComponent implements OnInit {
-  platformPct  = 35;
-  saving       = signal(false);
-  savedMsg     = signal('');
-  configEntries= signal<{ key: string; value: string }[]>([]);
+export class AdminConfigComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
 
-  otherConfigs = [
-    { key: 'test-pass-score-percent', label: 'Test Pass Score (%)',  value: '70',  type: 'number', hint: 'Minimum % to pass seller test', placeholder: '70' },
-    { key: 'currency',                label: 'Currency',             value: 'INR', type: 'text',   hint: 'Display currency symbol',        placeholder: 'INR' },
-  ];
+  protected loading = signal(true);
+  protected platform = signal(35);
+  protected currency = signal('INR');
+  protected passScore = signal(70);
+  protected savingSplit = signal(false);
+  protected savingOther = signal(false);
 
-  constructor(private api: ApiService) {}
-
-  ngOnInit() {
-    this.api.getConfig().subscribe(r => {
-      if (r.success) {
-        const cfg = r.data;
-        if (cfg['platform-commission-percent']) {
-          this.platformPct = +cfg['platform-commission-percent'];
-        }
-        // Populate otherConfigs values from DB
-        this.otherConfigs.forEach(item => {
-          if (cfg[item.key]) item.value = cfg[item.key];
-        });
-        // Build display table
-        this.configEntries.set(Object.entries(cfg).map(([key, value]) => ({ key, value })));
-      }
-    });
-  }
-
-  onCommissionChange() {
-    this.platformPct = Math.max(1, Math.min(99, this.platformPct));
-  }
-
-  saveCommission() {
-    this.saving.set(true); this.savedMsg.set('');
-    this.api.updateConfig('platform-commission-percent', String(this.platformPct)).subscribe({
-      next: r => {
-        this.saving.set(false);
-        if (r.success) {
-          this.savedMsg.set('Commission updated successfully!');
-          this.ngOnInit(); // Refresh table
-          setTimeout(() => this.savedMsg.set(''), 3000);
-        }
-      },
-      error: () => this.saving.set(false)
-    });
-  }
-
-  saveOtherConfigs() {
-    this.saving.set(true);
-    let pending = this.otherConfigs.length;
-    this.otherConfigs.forEach(item => {
-      this.api.updateConfig(item.key, item.value).subscribe(() => {
-        pending--;
-        if (pending === 0) { this.saving.set(false); this.ngOnInit(); }
+  constructor() {
+    this.api
+      .getConfig()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          const c = r.data ?? {};
+          this.platform.set(+(c['platform-commission-percent'] ?? 35));
+          this.currency.set(c['currency'] ?? 'INR');
+          this.passScore.set(+(c['test-pass-score-percent'] ?? 70));
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
       });
-    });
+  }
+
+  protected saveSplit() {
+    this.savingSplit.set(true);
+    forkJoin([
+      this.api.updateConfig('platform-commission-percent', String(this.platform())),
+      this.api.updateConfig('seller-commission-percent', String(100 - this.platform())),
+    ])
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.savingSplit.set(false);
+          this.toast.success('Revenue split updated');
+        },
+        error: () => this.savingSplit.set(false),
+      });
+  }
+
+  protected saveOther() {
+    this.savingOther.set(true);
+    forkJoin([
+      this.api.updateConfig('currency', this.currency()),
+      this.api.updateConfig('test-pass-score-percent', String(this.passScore())),
+    ])
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.savingOther.set(false);
+          this.toast.success('Settings saved');
+        },
+        error: () => this.savingOther.set(false),
+      });
   }
 }

@@ -1,134 +1,198 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiService } from '@core/services/api.service';
+import { ToastService } from '@core/services/toast.service';
 import { User } from '@core/models';
-import { environment } from '@env/environment';
+import { initials } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-admin-verifications',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container page-body">
-  <div class="sh">
-    <h2 class="st">Seller Verifications</h2>
-    <span class="badge badge-gd">{{ totalElements() }} pending</span>
-  </div>
-
-  @if (loading()) { <div class="sw"><div class="sp"></div></div> }
-  @else if (sellers().length === 0) {
-    <div class="es">
-      <div class="icon">✅</div>
-      <h3>All caught up!</h3>
-      <p>No pending seller verifications.</p>
+    <div class="page-head">
+      <div>
+        <div class="crumb">Admin</div>
+        <h1>Verifications</h1>
+        <p>{{ pending().length }} sellers awaiting review.</p>
+      </div>
     </div>
-  } @else {
-    <div style="display:flex;flex-direction:column;gap:1.25rem">
-      @for (s of sellers(); track s.id) {
-        <div class="vc">
-          <!-- Header -->
-          <div class="vc-head">
-            <div class="vc-av">{{ s.fullName.charAt(0) }}</div>
-            <div style="flex:1">
-              <div style="font-weight:700;font-size:1rem">{{ s.fullName }}</div>
-              <div style="font-size:.8rem;color:var(--mu)">{{ s.email }}</div>
-              @if (s.classLevel) { <div style="font-size:.78rem;color:var(--mu)">{{ s.classLevel }}</div> }
+
+    @if (loading()) {
+      <div class="skel" style="height:240px;border-radius:12px"></div>
+    } @else if (pending().length === 0) {
+      <div class="card empty">
+        <div class="e-ic" style="background:var(--success-bg);color:var(--success);">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <path
+              d="m5 13 4 4L19 7"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
+        <h3>No pending verifications 🎉</h3>
+        <p>You're all caught up. New seller submissions will appear here.</p>
+      </div>
+    } @else {
+      <div class="verif-cards">
+        @for (p of pending(); track p.id) {
+          <div class="card verif-review">
+            <div class="vr-top">
+              <span class="avatar avatar-lg">{{ initials(p.fullName) }}</span>
+              <div style="flex:1;">
+                <h4 style="font-size:var(--t-16);">{{ p.fullName }}</h4>
+                <div class="muted" style="font-size:13px;">{{ p.institution }}</div>
+                @if (p.classLevel) {
+                  <div style="margin-top:6px;">
+                    <span class="badge badge-amber">★ {{ p.classLevel }}</span>
+                  </div>
+                }
+              </div>
             </div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-              @if (s.testPassed) { <span class="badge badge-gn">✓ Test: {{ s.testScore }}%</span> }
-              @if (s.marksheetApproved === false && s.testPassed) { <span class="badge badge-gd">📄 Marksheet Uploaded</span> }
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+              <span class="badge badge-success"
+                ><svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Test passed · {{ p.testScore }}%</span
+              >
+            </div>
+            <div class="marksheet-thumb"><span class="muted" style="font-size:12px;">Marksheet</span></div>
+            <div style="display:flex;gap:10px;margin-top:16px;">
+              <button class="btn btn-danger btn-block" (click)="openReject(p)">Reject</button>
+              <button
+                class="btn btn-block"
+                style="background:var(--success);color:#fff;"
+                [attr.data-loading]="busyId() === p.id ? '1' : null"
+                (click)="approve(p)"
+              >
+                <span class="btn-spin"></span><span>Approve</span>
+              </button>
             </div>
           </div>
+        }
+      </div>
+    }
 
-          <!-- Marksheet preview (blurred for privacy) -->
-          @if (s.testPassed) {
-            <div class="ms-preview">
-              <div class="ms-label">Marksheet Preview <span style="font-weight:400;color:var(--mu)">(privacy blur applied — only Name & Roll visible to admin)</span></div>
-              <div class="ms-blur-wrap">
-                <div class="ms-visible top"></div>
-                <div class="ms-blurred"></div>
-                <div class="ms-visible bottom"></div>
-                <div class="ms-lock">🔒 Privacy Protected</div>
-              </div>
-              <a [href]="apiUrl + '/uploads' + '/marksheets'" target="_blank" class="btn btn-outline btn-sm" style="margin-top:.5rem">View Full Document</a>
-            </div>
-          }
-
-          <!-- Actions -->
-          <div class="vc-actions">
-            <input class="fc" style="flex:1;min-width:200px" [(ngModel)]="reasons[s.id]"
-                   placeholder="Rejection reason (required if rejecting)">
-            <button class="btn btn-teal" (click)="approve(s, true)">✓ Approve</button>
-            <button class="btn btn-danger" (click)="approve(s, false)">✕ Reject</button>
+    <!-- Reject modal -->
+    <div class="modal-scrim" [class.open]="rejecting()">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>Reject verification</h3>
+          <button class="x-btn" (click)="rejecting.set(null)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p class="slate" style="font-size:14px;margin:0 0 16px;">
+            Rejecting <b>{{ rejecting()?.fullName }}</b
+            >. Provide a reason — they'll see this and can re-submit.
+          </p>
+          <div class="field" [class.invalid]="reasonError()">
+            <label class="label" for="rej-reason">Reason for rejection</label
+            ><textarea
+              id="rej-reason"
+              class="textarea"
+              [value]="reason()"
+              (input)="reason.set($any($event.target).value)"
+              placeholder="e.g. Marksheet image is blurry / details don't match…"
+            ></textarea>
+            <div class="field-err">A reason is required.</div>
           </div>
         </div>
-      }
+        <div class="modal-foot">
+          <button class="btn btn-secondary" (click)="rejecting.set(null)">Cancel</button
+          ><button class="btn btn-danger" (click)="confirmReject()">Reject seller</button>
+        </div>
+      </div>
     </div>
-  }
-
-  <!-- Toast -->
-  @if (toast()) {
-    <div class="toast-fixed">
-      <div class="toast" [class.ok]="toastType()==='ok'" [class.er]="toastType()==='er'">{{ toast() }}</div>
-    </div>
-  }
-</div>
-</div>
   `,
-  styles: [`
-    .vc { background:#fff; border-radius:20px; padding:1.5rem; box-shadow:var(--sh); }
-    .vc-head { display:flex; align-items:flex-start; gap:.9rem; flex-wrap:wrap; margin-bottom:1.1rem; }
-    .vc-av   { width:48px; height:48px; border-radius:50%; background:var(--ink); color:var(--gd); display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:700; flex-shrink:0; }
-    .ms-preview { margin-bottom:1.1rem; }
-    .ms-label { font-size:.78rem; font-weight:700; color:var(--mu); margin-bottom:.5rem; text-transform:uppercase; letter-spacing:.05em; }
-    .ms-blur-wrap { position:relative; border-radius:10px; overflow:hidden; background:var(--cr2); height:100px; display:flex; flex-direction:column; }
-    .ms-visible  { background:transparent; height:20%; }
-    .ms-blurred  { flex:1; backdrop-filter:blur(14px); background:rgba(255,255,255,.35); }
-    .ms-lock { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:rgba(0,0,0,.3); }
-    .vc-actions { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
-    .toast-fixed { position:fixed; bottom:2rem; right:2rem; z-index:9999; animation:fi .2s ease; }
-    .toast { background:var(--ink); color:#fff; padding:.75rem 1.4rem; border-radius:14px; box-shadow:var(--shl); font-size:.88rem; font-weight:500; }
-    .toast.ok { background:var(--gn); } .toast.er { background:var(--rd); }
-  `]
 })
-export class AdminVerificationsComponent implements OnInit {
-  sellers      = signal<User[]>([]);
-  loading      = signal(true);
-  totalElements= signal(0);
-  reasons: Record<number, string> = {};
-  toast      = signal('');
-  toastType  = signal('');
-  apiUrl     = environment.apiUrl;
+export class AdminVerificationsComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private api: ApiService) {}
-  ngOnInit() { this.load(); }
+  protected pending = signal<User[]>([]);
+  protected loading = signal(true);
+  protected busyId = signal<number | null>(null);
+  protected rejecting = signal<User | null>(null);
+  protected reason = signal('');
+  protected reasonError = signal(false);
 
-  load() {
-    this.api.getPendingVerifications().subscribe(r => {
-      this.loading.set(false);
-      if (r.success) { this.sellers.set(r.data.content); this.totalElements.set(r.data.totalElements); }
-    });
+  constructor() {
+    this.load();
   }
 
-  approve(s: User, approved: boolean) {
-    if (!approved && !this.reasons[s.id]?.trim()) {
-      alert('Please provide a rejection reason.'); return;
+  private load() {
+    this.loading.set(true);
+    this.api
+      .getPendingVerifications(0)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.pending.set(r.data?.content ?? []);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+  }
+
+  protected approve(p: User) {
+    this.busyId.set(p.id);
+    this.api
+      .approveSeller(p.id, true)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.busyId.set(null);
+          this.toast.success(`${p.fullName} approved`);
+          this.remove(p.id);
+        },
+        error: () => this.busyId.set(null),
+      });
+  }
+
+  protected openReject(p: User) {
+    this.rejecting.set(p);
+    this.reason.set('');
+    this.reasonError.set(false);
+  }
+
+  protected confirmReject() {
+    const p = this.rejecting();
+    if (!p) return;
+    if (!this.reason().trim()) {
+      this.reasonError.set(true);
+      return;
     }
-    this.api.approveSeller(s.id, approved, this.reasons[s.id]).subscribe(r => {
-      if (r.success) {
-        this.sellers.update(list => list.filter(x => x.id !== s.id));
-        this.totalElements.update(n => n - 1);
-        this.showToast(approved ? '✅ Seller approved and notified!' : '✕ Seller rejected and notified.', approved ? 'ok' : 'er');
-      }
-    });
+    this.api
+      .approveSeller(p.id, false, this.reason().trim())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success(`${p.fullName} rejected`);
+          this.rejecting.set(null);
+          this.remove(p.id);
+        },
+        error: () => {},
+      });
   }
 
-  showToast(msg: string, type: string) {
-    this.toast.set(msg); this.toastType.set(type);
-    setTimeout(() => this.toast.set(''), 3200);
+  private remove(id: number) {
+    this.pending.update((list) => list.filter((x) => x.id !== id));
   }
+
+  protected readonly initials = initials;
 }

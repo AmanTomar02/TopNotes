@@ -32,6 +32,18 @@ export interface User {
   createdAt?: string;
 }
 
+// ── Notification ─────────────────────────────────────────────────
+export type NotificationType = 'SALE' | 'PAYMENT' | 'VERIFICATION' | 'REVIEW' | 'SYSTEM';
+
+export interface AppNotification {
+  id: number;
+  title: string;
+  message: string;
+  type: NotificationType;
+  isRead: boolean;
+  createdAt?: string;
+}
+
 // ── Note ─────────────────────────────────────────────────────────
 export interface SellerProfile {
   id: number;
@@ -75,19 +87,6 @@ export interface Purchase {
   invoiceNumber?: string;
   status?: PaymentStatus;
   purchasedAt?: string;
-}
-
-export interface PaymentOrder {
-  provider: 'RAZORPAY' | 'DEMO';
-  keyId?: string;
-  orderId: string;
-  amountPaise: number;
-  amount: number;
-  currency: string;
-  noteId: number;
-  noteTitle: string;
-  buyerName?: string;
-  buyerEmail?: string;
 }
 
 export interface Review {
