@@ -1,0 +1,8 @@
+dist
+node_modules
+.angular
+out-tsc
+# design-system CSS copied verbatim from the UI design — keep as-is
+src/styles/topnotes.css
+src/styles/app.css
+src/styles/legacy.css

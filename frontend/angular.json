@@ -6,9 +6,15 @@
     "topnotes-frontend": {
       "projectType": "application",
       "schematics": {
-        "@schematics/angular:component": { "standalone": true },
-        "@schematics/angular:directive":  { "standalone": true },
-        "@schematics/angular:pipe":       { "standalone": true }
+        "@schematics/angular:component": {
+          "standalone": true
+        },
+        "@schematics/angular:directive": {
+          "standalone": true
+        },
+        "@schematics/angular:pipe": {
+          "standalone": true
+        }
       },
       "root": "",
       "sourceRoot": "src",
@@ -18,30 +24,40 @@
           "builder": "@angular-devkit/build-angular:application",
           "options": {
             "outputPath": "dist/topnotes-frontend",
-            "index":      "src/index.html",
-            "browser":    "src/main.ts",
-            "polyfills":  ["zone.js"],
-            "tsConfig":   "tsconfig.app.json",
-            "assets":     ["src/favicon.ico", "src/assets"],
-            "styles":     ["src/styles.css"],
-            "scripts":    []
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "polyfills": ["zone.js"],
+            "tsConfig": "tsconfig.app.json",
+            "assets": ["src/favicon.ico", "src/assets"],
+            "styles": ["src/styles.css"],
+            "scripts": []
           },
           "configurations": {
             "production": {
               "budgets": [
-                { "type": "initial",          "maximumWarning": "500kb", "maximumError": "1mb" },
-                { "type": "anyComponentStyle","maximumWarning": "10kb",  "maximumError": "12kb" }
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "1mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "10kb",
+                  "maximumError": "12kb"
+                }
               ],
               "fileReplacements": [
-                { "replace": "src/environments/environment.ts",
-                  "with":    "src/environments/environment.prod.ts" }
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
               ],
               "outputHashing": "all"
             },
             "development": {
-              "optimization":    false,
+              "optimization": false,
               "extractLicenses": false,
-              "sourceMap":       true
+              "sourceMap": true
             }
           },
           "defaultConfiguration": "production"
@@ -49,15 +65,26 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
-            "production":  { "buildTarget": "topnotes-frontend:build:production"  },
-            "development": { "buildTarget": "topnotes-frontend:build:development" }
+            "production": {
+              "buildTarget": "topnotes-frontend:build:production"
+            },
+            "development": {
+              "buildTarget": "topnotes-frontend:build:development"
+            }
           },
           "defaultConfiguration": "development"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
+          }
         }
       }
     }
   },
   "cli": {
-    "analytics": false
+    "analytics": false,
+    "schematicCollections": ["@angular-eslint/schematics"]
   }
 }

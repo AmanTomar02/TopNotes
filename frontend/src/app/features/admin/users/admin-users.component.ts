@@ -1,118 +1,178 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { ApiService } from '@core/services/api.service';
+import { ToastService } from '@core/services/toast.service';
 import { User } from '@core/models';
+import { initials } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-admin-users',
   standalone: true,
-  imports: [CommonModule, FormsModule, NavbarComponent, DatePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [DatePipe],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container page-body">
-  <div class="sh"><h2 class="st">User Management</h2></div>
-
-  <!-- Role tabs -->
-  <div class="role-tabs">
-    @for (t of tabs; track t.val) {
-      <button class="rtab" [class.active]="roleFilter === t.val" (click)="setRole(t.val)">{{ t.label }}</button>
-    }
-  </div>
-
-  @if (loading()) { <div class="sw"><div class="sp"></div></div> }
-  @else {
-    <div class="tw">
-      <table>
-        <thead>
-          <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Verified</th><th>Joined</th><th>Actions</th></tr>
-        </thead>
-        <tbody>
-          @for (u of users(); track u.id) {
-            <tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:.55rem">
-                  <div style="width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0">{{ u.fullName.charAt(0) }}</div>
-                  {{ u.fullName }}
-                </div>
-              </td>
-              <td>{{ u.email }}</td>
-              <td><span class="badge" [class]="roleBadge(u.role)">{{ u.role }}</span></td>
-              <td><span class="badge" [class]="statusBadge(u.status)">{{ u.status }}</span></td>
-              <td>
-                @if (u.role === 'SELLER') {
-                  <span class="badge" [class]="u.isVerified ? 'badge-gn' : 'badge-rd'">{{ u.isVerified ? '✓ Yes' : '✗ No' }}</span>
-                } @else { <span style="color:var(--mu)">—</span> }
-              </td>
-              <td>{{ u.createdAt | date:'mediumDate' }}</td>
-              <td>
-                @if (u.status === 'ACTIVE') {
-                  <button class="btn btn-danger btn-sm" (click)="suspend(u)">Suspend</button>
-                } @else if (u.status === 'SUSPENDED') {
-                  <button class="btn btn-teal btn-sm" (click)="activate(u)">Activate</button>
-                }
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+    <div class="page-head">
+      <div>
+        <div class="crumb">Admin</div>
+        <h1>Users</h1>
+        <p>{{ total() }} accounts</p>
+      </div>
     </div>
 
-    @if (totalPages() > 1) {
-      <div class="pgn">
-        <button class="pb" (click)="go(page()-1)" [disabled]="page()===0">‹</button>
-        @for (i of pageArr(); track i) { <button class="pb" [class.active]="i===page()" (click)="go(i)">{{ i+1 }}</button> }
-        <button class="pb" (click)="go(page()+1)" [disabled]="page()>=totalPages()-1">›</button>
+    <div
+      style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;"
+    >
+      <div class="tabs" style="border:none;">
+        <button class="tab" [attr.aria-selected]="role() === ''" (click)="setRole('')">All</button>
+        <button class="tab" [attr.aria-selected]="role() === 'BUYER'" (click)="setRole('BUYER')">Buyers</button>
+        <button class="tab" [attr.aria-selected]="role() === 'SELLER'" (click)="setRole('SELLER')">Sellers</button>
+      </div>
+      <div class="search" style="width:260px;">
+        <span class="s-ic"
+          ><svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7" />
+            <path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg></span
+        ><input
+          class="input"
+          placeholder="Search by name or email"
+          [value]="term()"
+          (input)="term.set($any($event.target).value)"
+        />
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="skel" style="height:300px;border-radius:12px"></div>
+    } @else {
+      <div class="table-wrap responsive">
+        <table class="tn">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th class="hide-mobile">Joined</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of filtered(); track u.id) {
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="avatar avatar-sm">{{ initials(u.fullName) }}</span>
+                    <div>
+                      <div style="font-weight:700;">{{ u.fullName }}</div>
+                      <div class="muted" style="font-size:13px;">{{ u.email }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge" [class]="'badge ' + roleBadge(u.role)">{{ u.role }}</span>
+                </td>
+                <td>
+                  <span class="badge" [class]="'badge ' + statusBadge(u.status)"
+                    ><span class="dot"></span>{{ u.status }}</span
+                  >
+                </td>
+                <td class="hide-mobile">{{ u.createdAt | date: 'd MMM y' }}</td>
+                <td>
+                  <div class="tbl-actions">
+                    @if (u.status === 'ACTIVE') {
+                      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" (click)="suspend(u)">
+                        Suspend
+                      </button>
+                    } @else if (u.status === 'SUSPENDED') {
+                      <button class="btn btn-ghost btn-sm" style="color:var(--success);" (click)="activate(u)">
+                        Activate
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="muted" style="text-align:center;padding:32px;">No users found.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
     }
-  }
-</div>
-</div>
   `,
-  styles: [`
-    .role-tabs { display:flex; gap:.4rem; margin-bottom:1.25rem; flex-wrap:wrap; }
-    .rtab { padding:.38rem 1rem; border:1.5px solid var(--cr3); border-radius:100px; background:#fff; font-family:'Outfit',sans-serif; font-size:.84rem; cursor:pointer; color:var(--mu); transition:all var(--t); }
-    .rtab.active { background:var(--ink); color:#fff; border-color:var(--ink); }
-  `]
 })
-export class AdminUsersComponent implements OnInit {
-  users      = signal<User[]>([]);
-  loading    = signal(true);
-  page       = signal(0);
-  totalPages = signal(0);
-  roleFilter = '';
-  tabs = [
-    { val: '',       label: 'All Users' },
-    { val: 'BUYER',  label: 'Buyers'    },
-    { val: 'SELLER', label: 'Sellers'   },
-    { val: 'ADMIN',  label: 'Admins'    },
-  ];
+export class AdminUsersComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private api: ApiService) {}
-  ngOnInit() { this.load(); }
+  protected users = signal<User[]>([]);
+  protected total = signal(0);
+  protected loading = signal(true);
+  protected role = signal<'' | 'BUYER' | 'SELLER'>('');
+  protected term = signal('');
 
-  load(p = 0) {
-    this.loading.set(true); this.page.set(p);
-    this.api.getUsers(this.roleFilter || undefined, p).subscribe(r => {
-      this.loading.set(false);
-      if (r.success) { this.users.set(r.data.content); this.totalPages.set(r.data.totalPages); }
-    });
+  protected filtered = computed(() => {
+    const q = this.term().trim().toLowerCase();
+    if (!q) return this.users();
+    return this.users().filter((u) => u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q));
+  });
+
+  constructor() {
+    this.load();
   }
 
-  setRole(r: string) { this.roleFilter = r; this.load(0); }
-  go(p: number) { if (p < 0 || p >= this.totalPages()) return; this.load(p); }
-  pageArr() { return Array.from({ length: this.totalPages() }, (_, i) => i); }
-
-  suspend(u: User) {
-    if (!confirm(`Suspend ${u.fullName}?`)) return;
-    this.api.suspendUser(u.id).subscribe(r => { if (r.success) u.status = 'SUSPENDED' as any; });
-  }
-  activate(u: User) {
-    this.api.activateUser(u.id).subscribe(r => { if (r.success) u.status = 'ACTIVE' as any; });
+  protected setRole(r: '' | 'BUYER' | 'SELLER') {
+    this.role.set(r);
+    this.load();
   }
 
-  roleBadge(r: string)   { return r==='ADMIN'?'badge-ik':r==='SELLER'?'badge-gd':'badge-tl'; }
-  statusBadge(s: string) { return s==='ACTIVE'?'badge-gn':'badge-rd'; }
+  private load() {
+    this.loading.set(true);
+    this.api
+      .getUsers(this.role() || undefined, 0)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.users.set(r.data?.content ?? []);
+          this.total.set(r.data?.totalElements ?? 0);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+  }
+
+  protected suspend(u: User) {
+    this.api
+      .suspendUser(u.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success(`${u.fullName} suspended`);
+          this.users.update((list) => list.map((x) => (x.id === u.id ? { ...x, status: 'SUSPENDED' } : x)));
+        },
+        error: () => {},
+      });
+  }
+  protected activate(u: User) {
+    this.api
+      .activateUser(u.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success(`${u.fullName} activated`);
+          this.users.update((list) => list.map((x) => (x.id === u.id ? { ...x, status: 'ACTIVE' } : x)));
+        },
+        error: () => {},
+      });
+  }
+
+  protected readonly initials = initials;
+  protected roleBadge(r: string): string {
+    return r === 'SELLER' ? 'badge-amber' : r === 'ADMIN' ? 'badge-success' : 'badge-indigo';
+  }
+  protected statusBadge(s: string): string {
+    return s === 'ACTIVE' ? 'badge-success' : 'badge-danger';
+  }
 }

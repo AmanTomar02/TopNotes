@@ -1,0 +1,82 @@
+/* ============================================================
+   TopNotes — Design Tokens
+   Swap the ~10 brand values below to match your final design;
+   the whole UI keys off these variables.
+   ============================================================ */
+:root {
+  /* ── Brand ─────────────────────────────────────────────── */
+  --c-primary: #3b2f8f; /* indigo-800 — primary actions/buttons */
+  --c-primary-hover: #2a2070; /* indigo-900 — hover / active          */
+  --c-primary-bright: #5b4be0; /* indigo-600 — links / focus / accents */
+  --c-primary-50: #eeebfb; /* tint for soft backgrounds            */
+  --c-accent: #f5a524; /* amber — premium / "topper"           */
+  --c-accent-600: #d98a0e;
+  --c-accent-50: #fdecc8;
+
+  /* ── Status ────────────────────────────────────────────── */
+  --c-success: #16a34a;
+  --c-success-50: #e7f6ec;
+  --c-danger: #dc2626;
+  --c-danger-50: #fcebeb;
+  --c-warning: #d97706;
+  --c-warning-50: #fcf1e2;
+
+  /* ── Neutrals ──────────────────────────────────────────── */
+  --c-ink: #0f1222; /* headings / strongest text  */
+  --c-text: #475467; /* body text                  */
+  --c-muted: #98a2b3; /* secondary / placeholder    */
+  --c-line: #eaecf0; /* borders / dividers         */
+  --c-surface: #ffffff; /* cards / panels             */
+  --c-canvas: #f7f8fa; /* page background            */
+
+  /* ── Typography ────────────────────────────────────────── */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --leading-tight: 1.2;
+  --leading-normal: 1.55;
+
+  /* ── Spacing (8pt) ─────────────────────────────────────── */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+
+  /* ── Radius ────────────────────────────────────────────── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  /* ── Elevation ─────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(16, 18, 34, 0.06), 0 1px 3px rgba(16, 18, 34, 0.05);
+  --shadow-md: 0 4px 12px rgba(16, 18, 34, 0.08), 0 2px 6px rgba(16, 18, 34, 0.05);
+  --shadow-lg: 0 16px 40px rgba(16, 18, 34, 0.12), 0 6px 16px rgba(16, 18, 34, 0.06);
+  --ring: 0 0 0 3px rgba(91, 75, 224, 0.2); /* focus ring */
+
+  /* ── Layout ────────────────────────────────────────────── */
+  --container: 1200px;
+  --topbar-h: 64px;
+
+  /* ── Motion ────────────────────────────────────────────── */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 280ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* enter   */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1); /* move    */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1); /* exit    */
+  --transition: var(--dur-base) var(--ease-standard);
+}

@@ -1,0 +1,56 @@
+can you please audit like a 30+yrs of SDE that make sure there will no old code desgin and no dead code  i need clean code and good architeture 
+
+
+
+Jo frontend checklist banai thi uske according sata dont
+
+
+
+
+Phase 1 — A11y pass (clear the 46 warnings) · frontend-only, ~quick
+The warnings are 3 patterns. Concrete fixes:
+
+click-events-have-key-events / interactive-supports-focus → convert clickable <div>s (chips, dropzones, marksheet thumb, nav popovers) into <button> (or add role="button" + tabindex="0" + (keydown.enter)/(keydown.space)). Most are already semantic; ~12 spots.
+label-has-associated-control → the filter checkboxes already wrap inputs; add for/id where they don't.
+Add visible focus states (already in tokens) + aria-live on the toast container.
+Verify: npm run lint → 0 warnings; quick manual keyboard tab-through.
+
+
+
+Phase 2 — Testing harness + tests · highest-value safety net
+Runner: add Jest via @angular-builders/jest (faster than Karma) + ts-jest; wire npm test.
+Unit tests (priority order): authGuard/roleGuard, authInterceptor + errorInterceptor (401→logout, toasts), AuthService (persist/loadStored/navigateAfterLogin), ToastService, NoteCard mapping, Browse (filter→URL→fetch with a mocked ApiService).
+E2E: Playwright for the 3 core journeys — login→browse→buy→read→review; seller verify→upload; admin approve. Run against the live Docker backend with seeded accounts.
+Coverage gate in CI (Phase 5).
+
+
+
+Phase 3 — Functional gaps · frontend, some need Akshat
+Admin Users pagination → reuse the Browse pager pattern; getUsers(role, page) already supports it. (FE only)
+Profile/Settings page + forgot-password → new routes/components; forgot-password needs a backend endpoint → coordinate with Akshat (or stub politely).
+Verification stepper/timer → one-question-at-a-time + countdown (TestConfig.timeLimitMinutes); FE only.
+Real Razorpay → use createPaymentOrder → Razorpay Checkout JS → verifyPayment; needs Razorpay keys + Akshat confirming the verify flow.
+Sort/filters → confirm backend params with Akshat; wire exact names.
+
+
+
+
+Phase 4 — Security · needs backend coordination (Akshat)
+JWT → HttpOnly cookie: backend sets Set-Cookie (HttpOnly, Secure, SameSite) on login; FE drops localStorage + uses withCredentials. Backend change required — this is the big one to plan jointly.
+CSP → add headers via index.html meta + host/Render config.
+Content protection (viewer) → genuinely server-side (paged, watermarked, signed URLs) — that's BACKEND_ISSUES BE-1, Akshat's.
+
+
+Phase 5 — Prod-readiness
+CI → GitHub Actions: lint → test → build on PR (now that lint/test exist). ~1 workflow file.
+Error monitoring → Sentry SDK init in main.ts + source maps.
+SEO/meta → Title/Meta services per route, favicon/og tags; consider Angular SSR later if SEO matters.
+
+
+
+Phase 6 — Optional polish
+Extract inline templates → templateUrl/styleUrls (mechanical).
+Lighthouse pass → fix any perf/a11y/SEO findings; target ≥90.
+Dependency summary
+Pure frontend (I can do solo): Phase 1, 2, 3 (most), 5 (CI/Sentry/SEO), 6.
+Needs Akshat: JWT-cookie, real Razorpay, content protection, forgot-password endpoint, exact sort/filter params.

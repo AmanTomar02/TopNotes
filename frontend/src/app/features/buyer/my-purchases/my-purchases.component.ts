@@ -1,96 +1,136 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
 import { ApiService } from '@core/services/api.service';
 import { Purchase } from '@core/models';
+import { subjectGradientFlat } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-my-purchases',
   standalone: true,
-  imports: [CommonModule, RouterLink, NavbarComponent, DatePipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, DatePipe],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-  <div class="container page-body">
-    <div class="sh">
-      <h2 class="st">My Purchases</h2>
-      <a routerLink="/browse" class="btn btn-outline btn-sm">Browse More Notes</a>
+    <div class="page-head">
+      <div>
+        <div class="crumb">Account</div>
+        <h1>My purchases</h1>
+        <p>{{ total() }} notes in your library.</p>
+      </div>
     </div>
 
-    @if (loading()) { <div class="sw"><div class="sp"></div></div> }
-    @else if (purchases().length === 0) {
-      <div class="es">
-        <div class="icon">📚</div>
-        <h3>No purchases yet</h3>
-        <p>Browse our collection and buy your first set of notes.</p>
-        <a routerLink="/browse" class="btn btn-primary" style="margin-top:1rem">Browse Notes</a>
+    @if (loading()) {
+      <div class="skel" style="height:240px;border-radius:12px"></div>
+    } @else if (purchases().length === 0) {
+      <div class="card empty">
+        <div class="e-ic">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M4 7h16l-1.4 11.2A2 2 0 0 1 16.6 20H7.4a2 2 0 0 1-2-1.8L4 7Z"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linejoin="round"
+            />
+            <path d="M9 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.7" />
+          </svg>
+        </div>
+        <h3>You haven't bought any notes yet</h3>
+        <p>Browse verified topper notes for your exam and start your library.</p>
+        <a class="btn btn-primary" routerLink="/browse">Browse notes</a>
       </div>
     } @else {
-      <div class="pur-list">
+      <div class="table-wrap responsive">
+        <table class="tn">
+          <thead>
+            <tr>
+              <th>Note</th>
+              <th class="hide-mobile">Date</th>
+              <th class="hide-mobile">Amount</th>
+              <th class="hide-mobile">Invoice</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of purchases(); track p.id) {
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div
+                      style="width:44px;height:56px;border-radius:6px;flex:none;"
+                      [style.background]="thumbBg(p)"
+                    ></div>
+                    <div>
+                      <div style="font-weight:700;">{{ p.note?.title }}</div>
+                      <div class="muted" style="font-size:13px;">
+                        {{ p.note?.seller?.fullName }} · {{ p.note?.subject }}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="hide-mobile">{{ p.purchasedAt | date: 'd MMM y' }}</td>
+                <td class="hide-mobile">₹{{ (p.amount || 0).toLocaleString('en-IN') }}</td>
+                <td class="hide-mobile">
+                  <span class="muted" style="font-size:13px;">{{ p.invoiceNumber }}</span>
+                </td>
+                <td>
+                  <div class="tbl-actions">
+                    <a class="btn btn-ghost btn-sm" [routerLink]="['/notes', p.note?.id]">Review</a>
+                    <a class="btn btn-secondary btn-sm" [routerLink]="['/notes', p.note?.id, 'view']">Read</a>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mobile-cards">
         @for (p of purchases(); track p.id) {
-          <div class="pur-row">
-            <div class="pur-icon">📄</div>
-            <div class="pur-info">
-              <div class="pur-title">{{ p.note?.title || 'Purchased Note' }}</div>
-              <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.3rem">
-                @if (p.note?.classLevel) { <span class="badge badge-tl">{{ p.note?.classLevel }}</span> }
-                @if (p.note?.subject)    { <span class="badge badge-gd">{{ p.note?.subject }}</span> }
+          <div class="card card-pad">
+            <div style="display:flex;gap:12px;">
+              <div style="width:48px;height:60px;border-radius:6px;flex:none;" [style.background]="thumbBg(p)"></div>
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:14px;">{{ p.note?.title }}</div>
+                <div class="muted" style="font-size:12px;margin-top:2px;">
+                  {{ p.purchasedAt | date: 'd MMM y' }} · ₹{{ (p.amount || 0).toLocaleString('en-IN') }}
+                </div>
+                <div class="muted" style="font-size:12px;">{{ p.invoiceNumber }}</div>
               </div>
-              <div class="pur-sub">Invoice: <strong>{{ p.invoiceNumber }}</strong> · {{ p.purchasedAt | date:'mediumDate' }}</div>
             </div>
-            <div class="pur-right">
-              <div class="pur-amt">₹{{ p.amount }}</div>
-              <span class="badge badge-gn">{{ p.status }}</span>
-              @if (p.note) {
-                <a [routerLink]="['/notes', p.note.id, 'view']" class="btn btn-teal btn-sm">📖 Read</a>
-              }
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <a class="btn btn-secondary btn-sm btn-block" [routerLink]="['/notes', p.note?.id, 'view']">Read</a>
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/notes', p.note?.id]">Review</a>
             </div>
           </div>
         }
       </div>
-
-      @if (totalPages() > 1) {
-        <div class="pgn">
-          <button class="pb" (click)="go(page()-1)" [disabled]="page()===0">‹</button>
-          @for (i of pageArr(); track i) {
-            <button class="pb" [class.active]="i===page()" (click)="go(i)">{{ i+1 }}</button>
-          }
-          <button class="pb" (click)="go(page()+1)" [disabled]="page()>=totalPages()-1">›</button>
-        </div>
-      }
     }
-  </div>
-</div>
   `,
-  styles: [`
-    .pur-list { display:flex; flex-direction:column; gap:.85rem; }
-    .pur-row  { background:#fff; border-radius:18px; padding:1.1rem 1.4rem; box-shadow:var(--sh); display:flex; align-items:center; gap:1.1rem; flex-wrap:wrap; transition:box-shadow var(--t); }
-    .pur-row:hover { box-shadow:var(--shm); }
-    .pur-icon { width:48px; height:48px; background:var(--tlp); border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; }
-    .pur-info { flex:1; min-width:200px; }
-    .pur-title{ font-weight:700; font-size:.9rem; margin-bottom:.3rem; }
-    .pur-sub  { font-size:.75rem; color:var(--mu); }
-    .pur-right{ display:flex; align-items:center; gap:.85rem; flex-wrap:wrap; }
-    .pur-amt  { font-family:'Cormorant Garamond',serif; font-size:1.2rem; font-weight:700; }
-  `]
 })
-export class MyPurchasesComponent implements OnInit {
-  purchases  = signal<Purchase[]>([]);
-  loading    = signal(true);
-  page       = signal(0);
-  totalPages = signal(0);
+export class MyPurchasesComponent {
+  private api = inject(ApiService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private api: ApiService) {}
-  ngOnInit() { this.load(); }
+  protected purchases = signal<Purchase[]>([]);
+  protected total = signal(0);
+  protected loading = signal(true);
 
-  load(p = 0) {
-    this.loading.set(true); this.page.set(p);
-    this.api.getMyPurchases(p).subscribe(r => {
-      this.loading.set(false);
-      if (r.success) { this.purchases.set(r.data.content); this.totalPages.set(r.data.totalPages); }
-    });
+  constructor() {
+    this.api
+      .getMyPurchases(0, 50)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.purchases.set(r.data?.content ?? []);
+          this.total.set(r.data?.totalElements ?? 0);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
   }
-  go(p: number) { if (p < 0 || p >= this.totalPages()) return; this.load(p); }
-  pageArr() { return Array.from({ length: this.totalPages() }, (_, i) => i); }
+
+  protected thumbBg(p: Purchase): string {
+    return subjectGradientFlat(p.note?.subject);
+  }
 }
