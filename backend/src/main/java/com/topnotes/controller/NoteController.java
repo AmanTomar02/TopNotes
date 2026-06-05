@@ -98,7 +98,7 @@ public class NoteController {
         if (note.getPreviewUrl() == null) {
             return ResponseEntity.notFound().build();
         }
-        return servePdfInline(note.getPreviewUrl(), "preview.pdf");
+        return servePdfInline(note.getPreviewUrl());
     }
 
     // ── BUYER: Secure full-note view ──────────────────────────
@@ -121,7 +121,7 @@ public class NoteController {
         if (note.getPreviewUrl() == null) {
             return ResponseEntity.notFound().build();
         }
-        return servePdfInline(note.getPreviewUrl(), "note.pdf");
+        return servePdfInline(note.getPreviewUrl());
     }
 
     // ── SELLER: Upload new note ───────────────────────────────
@@ -177,19 +177,19 @@ public class NoteController {
      * Serves PDF bytes as an inline response with headers that prevent
      * browser download, caching, and iframe embedding on other origins.
      */
-    private ResponseEntity<byte[]> servePdfInline(String relativeUrl, String filename) {
+    private ResponseEntity<byte[]> servePdfInline(String relativeUrl) {
         try {
             byte[] bytes = fileUploadUtil.readFileBytes(relativeUrl);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDisposition(
-                    ContentDisposition.inline().filename(filename).build());
+            headers.setContentDisposition(ContentDisposition.inline().build());
             // Content protection headers
             headers.set("Cache-Control",        "no-store, no-cache, must-revalidate, max-age=0");
             headers.set("Pragma",               "no-cache");
             headers.set("X-Content-Type-Options","nosniff");
             headers.set("X-Frame-Options",      "SAMEORIGIN");
+            headers.set("X-Download-Options",   "noopen");
             headers.set("Content-Security-Policy","default-src 'none'");
 
             return ResponseEntity.ok().headers(headers).body(bytes);
