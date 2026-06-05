@@ -9,14 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class CloudinaryConfig {
 
-    // Naye property prefixes se mapping pick karega
-    @Value("${app.cloudinary.cloud-name}")
+    // Direct system keys ko bina fallback filters ke bound karega
+    @Value("${CLOUDINARY_CLOUD_NAME}")
     private String cloudName;
 
-    @Value("${app.cloudinary.api-key}")
+    @Value("${CLOUDINARY_API_KEY}")
     private String apiKey;
 
-    @Value("${app.cloudinary.api-secret}")
+    @Value("${CLOUDINARY_API_SECRET}")
     private String apiSecret;
 
     @Bean
