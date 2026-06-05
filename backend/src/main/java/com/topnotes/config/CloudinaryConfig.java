@@ -9,14 +9,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class CloudinaryConfig {
 
-    // Render ke Environment Variables se automatic pick karega
-    @Value("${CLOUDINARY_CLOUD_NAME}")
+    // Naye property prefixes se mapping pick karega
+    @Value("${app.cloudinary.cloud-name}")
     private String cloudName;
 
-    @Value("${CLOUDINARY_API_KEY}")
+    @Value("${app.cloudinary.api-key}")
     private String apiKey;
 
-    @Value("${CLOUDINARY_API_SECRET}")
+    @Value("${app.cloudinary.api-secret}")
     private String apiSecret;
 
     @Bean
