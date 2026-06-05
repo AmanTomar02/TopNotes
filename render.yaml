@@ -55,7 +55,6 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
-
 databases:
   - name: topnotes-db
     databaseName: topnotes
@@ -63,3 +62,4 @@ databases:
     plan: free
     region: singapore
     postgresMajorVersion: "17"
+
