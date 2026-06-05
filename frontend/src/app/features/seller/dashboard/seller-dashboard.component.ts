@@ -1,132 +1,222 @@
-import { Component, OnInit, AfterViewInit, signal, ViewChild, ElementRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
 import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
-import { SellerDashboard, Note } from '@core/models';
+import { Purchase, SellerDashboard } from '@core/models';
+import { AreaChartComponent } from '@ui/area-chart/area-chart.component';
+import { initials, rupeeShort } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-seller-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, AreaChartComponent],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container page-body">
-
-  <div class="sh">
-    <div>
-      <h2 style="font-size:1.5rem">Welcome back, {{ auth.user()?.fullName?.split(' ')?.[0] || 'Seller' }} 👋</h2>
-      <p style="color:var(--mu);font-size:.85rem;margin-top:.2rem">Your earnings and performance at a glance</p>
-    </div>
-    <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-      <a routerLink="/seller/verification" class="btn btn-outline btn-sm">Verification Status</a>
-      <a routerLink="/seller/upload"       class="btn btn-primary btn-sm">+ Upload Notes</a>
-    </div>
-  </div>
-
-  @if (loading()) { <div class="sw"><div class="sp"></div></div> }
-  @else if (data()) {
-
-    <!-- Verification banner -->
-    @if (!data()!.isVerified) {
-      <div class="vbanner">
-        <span style="font-size:1.75rem">⚠️</span>
-        <div style="flex:1">
-          <strong style="display:block;margin-bottom:.2rem">Complete verification to start selling</strong>
-          <p style="font-size:.82rem;color:var(--mu)">Pass the academic test and upload your marksheet to get verified.</p>
-        </div>
-        <a routerLink="/seller/verification" class="btn btn-gold btn-sm">Start Verification →</a>
+    <div class="page-head">
+      <div>
+        <div class="crumb">Seller</div>
+        <h1>Welcome back, {{ firstName() }}</h1>
+        <p>Here's how your notes are performing.</p>
       </div>
-    }
-
-    <!-- Stats -->
-    <div class="sg" style="margin-bottom:1.5rem">
-      <div class="sc gd"><div class="sl">Total Earnings</div><div class="sv">₹{{ (data()!.totalEarnings||0) | number:'1.0-0' }}</div><div class="ss">All time</div></div>
-      <div class="sc tl"><div class="sl">This Month</div><div class="sv">₹{{ (data()!.monthEarnings||0) | number:'1.0-0' }}</div></div>
-      <div class="sc ik"><div class="sl">Today</div><div class="sv">₹{{ (data()!.todayEarnings||0) | number:'1.0-0' }}</div></div>
-      <div class="sc gn"><div class="sl">Total Notes</div><div class="sv">{{ data()!.totalNotes || 0 }}</div></div>
-      <div class="sc gd"><div class="sl">Total Sales</div><div class="sv">{{ data()!.totalSales || 0 }}</div></div>
-      <div class="sc tl"><div class="sl">Avg Rating</div><div class="sv">{{ (data()!.averageRating||0).toFixed(1) }}★</div></div>
-    </div>
-
-    <!-- Chart -->
-    <div class="chart-card" style="margin-bottom:1.5rem">
-      <div style="font-size:.88rem;font-weight:700;color:var(--ink3);margin-bottom:1.1rem">Revenue — Last 30 Days</div>
-      <div style="height:200px;position:relative">
-        <canvas #chartRef></canvas>
+      <div class="head-actions">
+        <a class="btn btn-primary" routerLink="/seller/upload"
+          ><svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          Upload new note</a
+        >
       </div>
     </div>
 
-    <!-- Recent notes -->
-    @if (data()!.recentNotes.length) {
-      <div class="sh">
-        <h3 class="st" style="font-size:1.2rem">Recent Notes</h3>
-        <a routerLink="/seller/notes" class="btn btn-outline btn-sm">View All →</a>
+    @if (loading()) {
+      <div class="stat-grid">
+        @for (s of [1, 2, 3, 4]; track s) {
+          <div class="skel" style="height:108px;border-radius:12px"></div>
+        }
       </div>
-      <div class="ng">
-        @for (n of data()!.recentNotes; track n.id) {
-          <div class="nc" [routerLink]="['/notes', n.id]">
-            <div class="ni" style="background:#1e1c2e">
-              <div class="icon">📄</div>
-              <div class="sub">{{ n.subject }}</div>
+    } @else {
+      @if (data(); as d) {
+        @if (d.totalSales === 0 && d.totalNotes === 0) {
+          <div class="card empty">
+            <div class="e-ic">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
             </div>
-            <div class="nb2">
-              <div class="nt">{{ n.title }}</div>
-              <div class="nf">
-                <div class="np">₹{{ n.price }}</div>
-                <div class="nr">🛒 {{ n.purchaseCount }} sold</div>
+            <h3>No sales yet</h3>
+            <p>Upload your first set of notes to start earning. Verified toppers earn on every download.</p>
+            <a class="btn btn-primary" routerLink="/seller/upload">Upload your first note</a>
+          </div>
+        } @else {
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="s-top"><span class="s-label">Total earnings</span></div>
+              <div class="s-value">₹{{ (d.totalEarnings || 0).toLocaleString('en-IN') }}</div>
+            </div>
+            <div class="stat-card">
+              <div class="s-top"><span class="s-label">This month</span></div>
+              <div class="s-value">₹{{ (d.monthEarnings || 0).toLocaleString('en-IN') }}</div>
+            </div>
+            <div class="stat-card">
+              <div class="s-top"><span class="s-label">Notes sold</span></div>
+              <div class="s-value">{{ d.totalSales || 0 }}</div>
+            </div>
+            <div class="stat-card">
+              <div class="s-top"><span class="s-label">Avg. rating</span></div>
+              <div class="s-value">{{ (d.averageRating || 0).toFixed(2) }}</div>
+            </div>
+          </div>
+
+          <div class="dash-grid">
+            <div class="card chart-card">
+              <div class="chart-head"><h3>Revenue · last 30 days</h3></div>
+              <app-area-chart [data]="chartData()" [labels]="chartLabels()" [fmt]="moneyFmt" />
+            </div>
+            <div>
+              <div class="card card-pad" style="margin-bottom:16px;">
+                <div
+                  style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:var(--r-ctrl);"
+                  [style.background]="d.isVerified ? 'var(--success-bg)' : 'var(--warning-bg)'"
+                  [style.border]="'1px solid ' + (d.isVerified ? 'var(--success-line)' : 'var(--warning-line)')"
+                >
+                  <span [style.color]="d.isVerified ? 'var(--success)' : 'var(--warning)'"
+                    ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
+                        stroke="currentColor"
+                        stroke-width="1.6"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="m9 12 2 2 4-4.5"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg
+                  ></span>
+                  <div style="line-height:1.3;">
+                    <b style="font-size:13px;">{{ d.isVerified ? 'Verified Seller' : 'Verification pending' }}</b
+                    ><br /><small style="font-size:12px;color:var(--slate);">{{
+                      d.isVerified ? 'You can publish notes' : 'Complete verification to sell'
+                    }}</small>
+                  </div>
+                </div>
+                @if (!d.isVerified) {
+                  <a class="quick-action" routerLink="/seller/verification" style="margin-top:14px;"
+                    ><span class="qa-ic"
+                      ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
+                          stroke="currentColor"
+                          stroke-width="1.7"
+                          stroke-linejoin="round"
+                        /></svg></span
+                    ><span><b>Complete verification</b><small>Test + marksheet</small></span></a
+                  >
+                }
+                <a class="quick-action" routerLink="/seller/upload" style="margin-top:14px;"
+                  ><span class="qa-ic"
+                    ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      /></svg></span
+                  ><span><b>Upload new note</b><small>Add to your catalogue</small></span></a
+                >
+                <a class="quick-action" routerLink="/seller/notes"
+                  ><span class="qa-ic"
+                    ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M6 3h9l5 5v13H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
+                        stroke="currentColor"
+                        stroke-width="1.7"
+                        stroke-linejoin="round"
+                      /></svg></span
+                  ><span
+                    ><b>Manage notes</b><small>{{ d.totalNotes }} published</small></span
+                  ></a
+                >
               </div>
             </div>
           </div>
+
+          <div class="card card-pad" style="margin-top:20px;">
+            <div class="chart-head"><h3>Recent sales</h3></div>
+            <div class="sales-list">
+              @for (s of sales(); track s.id) {
+                <div class="sale-row">
+                  <span class="avatar avatar-sm">{{ initials(s.note?.title) }}</span>
+                  <div class="sr-body">
+                    <div class="sr-note">{{ s.note?.title }}</div>
+                    <div class="sr-meta">{{ s.invoiceNumber }}</div>
+                  </div>
+                  <span class="sr-amt">+₹{{ (s.sellerShare || s.amount || 0).toLocaleString('en-IN') }}</span>
+                </div>
+              } @empty {
+                <p class="muted" style="font-size:14px;">No sales yet.</p>
+              }
+            </div>
+          </div>
         }
-      </div>
-    }
-  }
-</div>
-</div>
-  `,
-  styles: [`
-    .chart-card { background:#fff; border-radius:18px; padding:1.4rem; box-shadow:var(--sh); }
-    .vbanner { display:flex; align-items:center; gap:1rem; background:linear-gradient(135deg,#fffaeb,#fff6d0); border:1.5px solid #f0d98a; border-radius:18px; padding:1.25rem 1.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
-  `]
-})
-export class SellerDashboardComponent implements OnInit, AfterViewInit {
-  @ViewChild('chartRef') chartRef!: ElementRef<HTMLCanvasElement>;
-  data    = signal<SellerDashboard | null>(null);
-  loading = signal(true);
-  private chartBuilt = false;
-
-  constructor(public auth: AuthService, private api: ApiService) {}
-
-  ngOnInit() {
-    this.api.getSellerDashboard().subscribe(r => {
-      this.loading.set(false);
-      if (r.success) this.data.set(r.data);
-    });
-  }
-
-  ngAfterViewInit() {
-    const interval = setInterval(() => {
-      if (this.data() && this.chartRef && !this.chartBuilt) {
-        this.chartBuilt = true;
-        clearInterval(interval);
-        this.buildChart();
       }
-    }, 80);
+    }
+  `,
+})
+export class SellerDashboardComponent {
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
+
+  protected data = signal<SellerDashboard | null>(null);
+  protected sales = signal<Purchase[]>([]);
+  protected loading = signal(true);
+
+  protected firstName = computed(() => (this.auth.user()?.fullName ?? 'there').split(' ')[0]);
+  protected chartData = computed(() => (this.data()?.salesChart ?? []).map((p) => p.revenue));
+  protected chartLabels = computed(() => {
+    const pts = this.data()?.salesChart ?? [];
+    if (pts.length < 2) return [];
+    const pick = [0, Math.floor(pts.length / 2), pts.length - 1];
+    return pick.map((i) => (pts[i]?.date ?? '').slice(5));
+  });
+  protected moneyFmt = rupeeShort;
+
+  constructor() {
+    this.api
+      .getSellerDashboard()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.data.set(r.data);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+    this.api
+      .getSellerSales(0)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => this.sales.set(r.data?.content ?? []),
+        error: () => {},
+      });
   }
 
-  private buildChart() {
-    import('chart.js/auto').then(({ default: Chart }) => {
-      const pts = this.data()?.salesChart || [];
-      const labels = pts.map((d: any) => d.date?.slice(5) || d.month || '');
-      const values = pts.map((d: any) => Number(d.revenue) || 0);
-      new Chart(this.chartRef.nativeElement, {
-        type: 'line',
-        data: { labels, datasets: [{ label:'Revenue (₹)', data: values, borderColor:'#1e6b6b', backgroundColor:'rgba(30,107,107,.08)', borderWidth:2, pointRadius:3, fill:true, tension:0.4 }] },
-        options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false}, ticks:{font:{size:10}}}, y:{grid:{color:'#f2efe8'}, ticks:{callback: (v:any) => '₹'+v, font:{size:10}}} } }
-      });
-    });
-  }
+  protected readonly initials = initials;
 }

@@ -1,254 +1,393 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DatePipe } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
-import { Note, PaymentOrder, Review } from '@core/models';
-
-declare const Razorpay: any;
+import { ToastService } from '@core/services/toast.service';
+import { Note, Review } from '@core/models';
+import { examLabel, initials, subjectGradient } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-note-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, DatePipe],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-  <div class="container" style="padding-top:1.5rem;padding-bottom:4rem">
-    @if (loading()) { <div class="sw"><div class="sp"></div></div> }
-    @else if (note()) {
-      <div class="detail-grid">
+    <a class="btn btn-ghost btn-sm" routerLink="/browse" style="margin-bottom:16px;">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path
+          d="M10 3 5 8l5 5"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      Back to browse
+    </a>
 
-        <!-- Left -->
-        <div>
-          <!-- Preview -->
-          <div style="background:var(--ink2);border-radius:20px;overflow:hidden;box-shadow:var(--shl);margin-bottom:2rem;position:relative">
-            <div style="position:absolute;top:.75rem;left:.75rem;background:var(--ink);color:var(--gd);font-size:.65rem;font-weight:700;padding:.2rem .7rem;border-radius:100px;letter-spacing:.05em;z-index:2">📄 FIRST PAGE PREVIEW</div>
-            <div style="padding:3rem 2.5rem 0;display:flex;flex-direction:column;gap:.55rem;min-height:260px">
-              @for (i of [1,2,3,4,5,6,7,8,9,10]; track i) {
-                <div [style.height]="i===1||i===6?'14px':'9px'" [style.width]="['90%','75%','85%','60%','95%','55%','80%','70%','88%','65%'][i-1]"
-                     style="background:rgba(255,255,255,.08);border-radius:4px"></div>
+    @if (loading()) {
+      <div class="detail-grid">
+        <div><div class="skel" style="aspect-ratio:1/1.3;max-width:420px;border-radius:12px"></div></div>
+        <div class="skel" style="height:280px;border-radius:12px"></div>
+      </div>
+    } @else {
+      @if (note(); as n) {
+        <div class="detail-grid">
+          <div>
+            <div class="preview-box">
+              <div class="thumb" style="position:absolute;inset:0;height:100%" [style.background]="thumbBg()">
+                <span class="thumb-glyph">{{ glyph() }}</span>
+              </div>
+              <div class="preview-lock">
+                <span class="lock-pill">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7" />
+                    <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" />
+                  </svg>
+                  Preview only · full notes after purchase
+                </span>
+              </div>
+            </div>
+
+            <div class="detail-badges">
+              @if (n.subject) {
+                <span class="badge badge-indigo">{{ n.subject }}</span>
+              }
+              @if (n.examType) {
+                <span class="badge badge-amber">{{ examLabel() }}</span>
+              }
+              @if (n.classLevel) {
+                <span class="badge">{{ n.classLevel }}</span>
               }
             </div>
-            <div style="background:linear-gradient(to top,rgba(12,11,20,.95),transparent);padding:2rem 1.5rem 1.5rem;text-align:center;color:#fff">
-              <div style="font-size:1.6rem;margin-bottom:.35rem">🔒</div>
-              <p style="font-size:.82rem;color:rgba(255,255,255,.55)">Purchase to unlock all {{ note()!.totalPages || '?' }} pages</p>
-            </div>
-          </div>
-
-          <!-- Reviews -->
-          <h3 style="font-size:1.2rem;margin-bottom:1rem">Student Reviews</h3>
-          @if (auth.isBuyer() && note()!.isPurchased) {
-            <div style="background:var(--cr2);border-radius:14px;padding:1.1rem;margin-bottom:1.25rem">
-              <div style="font-size:.8rem;font-weight:600;margin-bottom:.5rem">Write a Review</div>
-              <div style="display:flex;gap:.2rem;margin-bottom:.5rem">
-                @for (s of [1,2,3,4,5]; track s) {
-                  <button (click)="myRating=s" style="font-size:1.4rem;background:none;border:none;cursor:pointer;transition:transform .15s" [style.color]="s<=myRating?'#f59e0b':'#e4dfd5'" [style.transform]="s<=myRating?'scale(1.1)':'scale(1)'">★</button>
+            <h1 class="detail-title">{{ n.title }}</h1>
+            <div class="nc-meta" style="margin-top:12px;">
+              <span class="stars" style="--st:18px">
+                @for (f of starArr(); track $index) {
+                  <svg [class.empty]="!f" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2 2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.6 6.1 20.6l1.3-6.5L2.5 8.9l6.6-.8L12 2Z" />
+                  </svg>
                 }
-              </div>
-              <textarea class="fc" [(ngModel)]="myComment" rows="2" placeholder="Share your thoughts…"></textarea>
-              <button class="btn btn-teal btn-sm" style="margin-top:.5rem" (click)="submitReview()" [disabled]="reviewLoading()">
-                {{ reviewLoading() ? 'Submitting…' : 'Submit Review' }}
-              </button>
-              @if (reviewMsg()) { <div class="alert alert-success" style="margin-top:.5rem;margin-bottom:0">{{ reviewMsg() }}</div> }
+              </span>
+              <span class="rating-text">{{ (n.averageRating || 0).toFixed(1) }}</span>
+              <span class="rating-count">({{ n.reviewCount || 0 }} reviews)</span>
             </div>
-          }
-          @if (reviews().length === 0) { <p style="color:var(--mu);font-size:.88rem">No reviews yet.</p> }
-          @for (r of reviews(); track r.id) {
-            <div style="background:#fff;border-radius:14px;padding:.95rem;box-shadow:var(--sh);margin-bottom:.65rem">
-              <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.4rem">
-                <div style="width:30px;height:30px;border-radius:50%;background:var(--ink2);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700">{{ r.buyerName?.charAt(0) }}</div>
-                <div><div style="font-weight:700;font-size:.85rem">{{ r.buyerName }}</div><div style="color:#f59e0b;font-size:.8rem">{{ '★'.repeat(r.rating) + '☆'.repeat(5-r.rating) }}</div></div>
-                <div style="font-size:.72rem;color:var(--mu);margin-left:auto">{{ r.createdAt | date:'mediumDate' }}</div>
-              </div>
-              @if (r.comment) { <p style="font-size:.83rem;color:var(--ink3);line-height:1.6">{{ r.comment }}</p> }
-            </div>
-          }
-        </div>
+            <p class="detail-desc">{{ n.description }}</p>
 
-        <!-- Right: sidebar -->
-        <div style="background:#fff;border-radius:22px;padding:1.5rem;box-shadow:var(--shl);position:sticky;top:82px">
-          <div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem">
-            @if (note()!.classLevel) { <span class="badge badge-tl">{{ note()!.classLevel }}</span> }
-            @if (note()!.subject)    { <span class="badge badge-gd">{{ note()!.subject }}</span> }
-            @if (note()!.examType)   { <span class="badge badge-ik">{{ note()!.examType }}</span> }
-          </div>
-          <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:700;line-height:1.25;margin-bottom:.6rem">{{ note()!.title }}</div>
-          @if (note()!.reviewCount) {
-            <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.85rem">
-              <span style="color:#f59e0b;font-size:.95rem">{{ '★'.repeat(Math.floor(note()!.averageRating||0)) }}{{ '☆'.repeat(5-Math.floor(note()!.averageRating||0)) }}</span>
-              <strong style="font-size:.9rem">{{ note()!.averageRating?.toFixed(1) }}</strong>
-              <span style="font-size:.78rem;color:var(--mu)">({{ note()!.reviewCount }} reviews)</span>
+            <div class="detail-facts">
+              <div class="fact">
+                <div class="f-label">Pages</div>
+                <div class="f-value">{{ n.totalPages || '—' }}</div>
+              </div>
+              <div class="fact">
+                <div class="f-label">Format</div>
+                <div class="f-value">PDF</div>
+              </div>
+              <div class="fact">
+                <div class="f-label">Exam</div>
+                <div class="f-value">{{ examLabel() || '—' }}</div>
+              </div>
+              <div class="fact">
+                <div class="f-label">Class</div>
+                <div class="f-value">{{ (n.classLevel || '').replace('Class ', '') || '—' }}</div>
+              </div>
             </div>
-          }
-          @if (note()!.seller) {
-            <div style="display:flex;align-items:center;gap:.7rem;background:var(--cr);border-radius:12px;padding:.8rem;margin-bottom:.9rem">
-              <div style="width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--gd);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;flex-shrink:0">{{ note()!.seller!.fullName.charAt(0) }}</div>
-              <div><div style="font-weight:700;font-size:.88rem">{{ note()!.seller!.fullName }}</div><div style="font-size:.75rem;color:var(--mu)">{{ note()!.seller!.institution || note()!.seller!.classLevel }}</div></div>
-            </div>
-          }
-          <p style="font-size:.83rem;color:var(--ink3);line-height:1.65;margin-bottom:.9rem">{{ note()!.description }}</p>
-          <div style="display:flex;flex-direction:column;gap:.35rem;margin-bottom:1.1rem">
-            @if (note()!.totalPages) { <div style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--mu)"><span>📄</span> {{ note()!.totalPages }} pages</div> }
-            <div style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--mu)"><span>🛒</span> {{ note()!.purchaseCount || 0 }} purchases</div>
-          </div>
-          <div style="border-top:1px solid var(--cr3);padding-top:1rem">
-            <div style="font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;margin-bottom:.85rem">₹{{ note()!.price }}</div>
-            @if (note()!.isPurchased) {
-              <a [routerLink]="['/notes', note()!.id, 'view']" class="btn btn-teal btn-blk" style="margin-bottom:.5rem">📖 Read Notes</a>
-              <div class="alert alert-success" style="margin-top:.6rem;margin-bottom:0">Already purchased on this buyer account.</div>
-            } @else if (auth.isBuyer()) {
-              <button class="btn btn-gold btn-blk btn-lg" (click)="buy()" [disabled]="buyLoading()">
-                @if (buyLoading()) { <span class="sp-btn"></span> }
-                {{ buyLoading() ? 'Processing payment…' : '💳 Pay with Razorpay ₹' + note()!.price }}
-              </button>
-              @if (buyError()) { <div class="alert alert-error" style="margin-top:.6rem;margin-bottom:0">{{ buyError() }}</div> }
-            } @else if (auth.isLoggedIn()) {
-              <div class="alert alert-info" style="margin-bottom:0">Payment is available only from a buyer account. Sign out and login as buyer to purchase.</div>
-            } @else if (!auth.isLoggedIn()) {
-              <a routerLink="/register" class="btn btn-primary btn-blk btn-lg">Sign up to Purchase</a>
+
+            @if (n.seller; as s) {
+              <div class="card seller-mini">
+                <span class="avatar avatar-lg">{{ sellerInitials() }}</span>
+                <div class="sm-body">
+                  <h4>
+                    {{ s.fullName }}
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
+                        fill="#EEEBFB"
+                        stroke="#5B4BE0"
+                        stroke-width="1.4"
+                        stroke-linejoin="round"
+                      />
+                      <path
+                        d="m9 12 2 2 4-4.5"
+                        stroke="#5B4BE0"
+                        stroke-width="1.6"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </h4>
+                  @if (s.institution) {
+                    <div class="sm-inst">{{ s.institution }}</div>
+                  }
+                  @if (s.bio) {
+                    <p class="sm-bio">{{ s.bio }}</p>
+                  }
+                </div>
+              </div>
             }
           </div>
-          <div style="text-align:center;font-size:.72rem;color:var(--mu);margin-top:.8rem">🔒 Secure · No download · Watermarked per user</div>
+
+          <!-- purchase card -->
+          <div class="card purchase-card">
+            <div class="pc-price">₹{{ (n.price || 0).toLocaleString('en-IN') }} <small>one-time</small></div>
+
+            @if (isPurchased()) {
+              <a
+                class="btn btn-primary btn-lg btn-block"
+                style="margin-top:16px;background:var(--success);"
+                [routerLink]="['/notes', n.id, 'view']"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right:4px;">
+                  <path
+                    d="M4 5.5C4 4.7 4.7 4 5.5 4H11v15H5.5A1.5 1.5 0 0 1 4 17.5v-12Z"
+                    stroke="white"
+                    stroke-width="1.6"
+                  />
+                  <path
+                    d="M20 5.5C20 4.7 19.3 4 18.5 4H13v15h5.5a1.5 1.5 0 0 0 1.5-1.5v-12Z"
+                    stroke="white"
+                    stroke-width="1.6"
+                  />
+                </svg>
+                Read notes
+              </a>
+            } @else {
+              <button
+                class="btn btn-primary btn-lg btn-block"
+                style="margin-top:16px;"
+                [attr.data-loading]="purchasing() ? '1' : null"
+                (click)="buy()"
+              >
+                <span class="btn-spin"></span>
+                <span>Buy for ₹{{ (n.price || 0).toLocaleString('en-IN') }}</span>
+              </button>
+            }
+
+            <div class="pc-secure">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+              View-only access · watermarked with your email · no download
+            </div>
+            <ul class="pc-includes">
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                {{ n.totalPages || '' }} pages of handwritten notes
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Lifetime access in your library
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Read on any device, secure viewer
+              </li>
+            </ul>
+          </div>
         </div>
-      </div>
+
+        <!-- reviews -->
+        <div class="reviews">
+          <h2 style="font-size:var(--t-24);font-weight:800;">Reviews</h2>
+          <div class="card rev-summary" style="margin-top:14px;">
+            <div style="text-align:center;">
+              <div class="rev-big">{{ (n.averageRating || 0).toFixed(1) }}</div>
+              <div class="stars" style="--st:16px">
+                @for (f of starArr(); track $index) {
+                  <svg [class.empty]="!f" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2 2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.6 6.1 20.6l1.3-6.5L2.5 8.9l6.6-.8L12 2Z" />
+                  </svg>
+                }
+              </div>
+              <div class="rating-count" style="margin-top:6px;">{{ n.reviewCount || 0 }} reviews</div>
+            </div>
+          </div>
+
+          @if (canReview()) {
+            <div class="card write-review">
+              <h4 style="font-size:var(--t-16);margin-bottom:6px;">Write a review</h4>
+              <p class="muted" style="font-size:var(--t-14);margin:0 0 14px;">
+                You purchased this note — share your experience.
+              </p>
+              <div class="stars" style="--st:26px;margin-bottom:12px;cursor:pointer;">
+                @for (i of [1, 2, 3, 4, 5]; track i) {
+                  <svg [class.empty]="i > myRating()" (click)="myRating.set(i)" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="m12 2 2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.6 6.1 20.6l1.3-6.5L2.5 8.9l6.6-.8L12 2Z" />
+                  </svg>
+                }
+              </div>
+              <textarea
+                class="textarea"
+                placeholder="What did you think of these notes?"
+                [value]="myComment()"
+                (input)="myComment.set($any($event.target).value)"
+              ></textarea>
+              <div style="margin-top:14px;">
+                <button
+                  class="btn btn-primary"
+                  [attr.data-loading]="submitting() ? '1' : null"
+                  (click)="submitReview()"
+                >
+                  <span class="btn-spin"></span><span>Submit review</span>
+                </button>
+              </div>
+            </div>
+          }
+
+          <div class="rev-list">
+            @for (r of reviews(); track r.id) {
+              <div class="rev-item card">
+                <div class="rev-top">
+                  <span class="avatar avatar-sm">{{ initials(r.buyerName) }}</span>
+                  <span class="rev-name">{{ r.buyerName || 'Student' }}</span>
+                  <time>{{ r.createdAt | date: 'd MMM y' }}</time>
+                </div>
+                <div class="stars" style="--st:15px;margin-top:8px;">
+                  @for (i of [1, 2, 3, 4, 5]; track i) {
+                    <svg [class.empty]="i > r.rating" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="m12 2 2.9 6.1 6.6.8-4.9 4.6 1.3 6.5L12 17.6 6.1 20.6l1.3-6.5L2.5 8.9l6.6-.8L12 2Z" />
+                    </svg>
+                  }
+                </div>
+                <p class="rev-text">{{ r.comment }}</p>
+              </div>
+            } @empty {
+              <p class="muted" style="font-size:var(--t-14);">
+                No reviews yet — be the first to review after purchase.
+              </p>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="card empty">
+          <h3>Note not found</h3>
+          <p>This note may have been removed.</p>
+          <a class="btn btn-primary" routerLink="/browse">Back to browse</a>
+        </div>
+      }
     }
-  </div>
-</div>
   `,
-  styles: [`.detail-grid{display:grid;grid-template-columns:1fr 360px;gap:2rem;align-items:start}
-    .sp-btn{width:16px;height:16px;border:2px solid rgba(12,11,20,.2);border-top-color:var(--ink);border-radius:50%;animation:spin .7s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @media(max-width:880px){.detail-grid{grid-template-columns:1fr}}`]
 })
-export class NoteDetailComponent implements OnInit {
-  note         = signal<Note | null>(null);
-  reviews      = signal<Review[]>([]);
-  loading      = signal(true);
-  buyLoading   = signal(false);
-  buyError     = signal('');
-  reviewLoading= signal(false);
-  reviewMsg    = signal('');
-  myRating     = 0;
-  myComment    = '';
-  Math         = Math;
+export class NoteDetailComponent {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private route: ActivatedRoute, public auth: AuthService, private api: ApiService) {}
+  protected note = signal<Note | null>(null);
+  protected reviews = signal<Review[]>([]);
+  protected loading = signal(true);
+  protected purchasing = signal(false);
+  protected submitting = signal(false);
+  protected purchasedLocal = signal(false);
+  protected myRating = signal(5);
+  protected myComment = signal('');
 
-  ngOnInit() {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
-    this.api.getNote(id).subscribe(r => {
-      this.loading.set(false);
-      if (r.success) { this.note.set(r.data); this.loadReviews(id); }
-    });
-  }
+  private id = Number(this.route.snapshot.paramMap.get('id'));
 
-  loadReviews(id: number) {
-    this.api.getNoteReviews(id).subscribe(r => { if (r.success) this.reviews.set(r.data.content); });
-  }
+  protected isPurchased = computed(() => this.purchasedLocal() || !!this.note()?.isPurchased);
+  protected canReview = computed(() => this.isPurchased());
 
-  buy() {
-    this.buyLoading.set(true);
-    this.buyError.set('');
-    this.api.createPaymentOrder(this.note()!.id).subscribe({
-      next: r => {
-        if (!r.success) {
-          this.buyLoading.set(false);
-          this.buyError.set(r.message);
-          return;
-        }
-        r.data.provider === 'DEMO' ? this.completeDemoPayment(r.data) : this.openRazorpay(r.data);
-      },
-      error: err => {
-        this.buyLoading.set(false);
-        this.buyError.set(err?.error?.message || 'Could not start payment. Please try again.');
-      }
-    });
-  }
+  protected examLabel = computed(() => examLabel(this.note()?.examType));
+  protected thumbBg = computed(() => subjectGradient(this.note()?.subject));
+  protected glyph = computed(() => (this.note()?.subject ?? '?').charAt(0).toUpperCase());
+  protected sellerInitials = computed(() => this.initials(this.note()?.seller?.fullName));
+  protected starArr = computed(() => {
+    const r = Math.round(this.note()?.averageRating ?? 0);
+    return Array.from({ length: 5 }, (_, i) => i < r);
+  });
 
-  private completeDemoPayment(order: PaymentOrder) {
-    this.verify({
-      noteId: order.noteId,
-      razorpayOrderId: order.orderId,
-      razorpayPaymentId: `demo_pay_${Date.now()}`,
-      razorpaySignature: 'demo'
-    });
-  }
-
-  private openRazorpay(order: PaymentOrder) {
-    this.loadRazorpayScript().then(() => {
-      const checkout = new Razorpay({
-        key: order.keyId,
-        amount: order.amountPaise,
-        currency: order.currency,
-        name: 'TopNotes',
-        description: order.noteTitle,
-        order_id: order.orderId,
-        prefill: {
-          name: order.buyerName || this.auth.user()?.fullName,
-          email: order.buyerEmail || this.auth.user()?.email
+  constructor() {
+    this.api
+      .getNote(this.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.note.set(r.data);
+          this.loading.set(false);
         },
-        theme: { color: '#1e6b6b' },
-        modal: {
-          ondismiss: () => this.buyLoading.set(false)
+        error: () => {
+          this.note.set(null);
+          this.loading.set(false);
         },
-        handler: (response: any) => this.verify({
-          noteId: order.noteId,
-          razorpayOrderId: response.razorpay_order_id,
-          razorpayPaymentId: response.razorpay_payment_id,
-          razorpaySignature: response.razorpay_signature
-        })
       });
-      checkout.open();
-    }).catch(() => {
-      this.buyLoading.set(false);
-      this.buyError.set('Payment checkout could not load. Check your internet connection.');
-    });
+    this.api
+      .getNoteReviews(this.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => this.reviews.set(r.data?.content ?? []),
+        error: () => {},
+      });
   }
 
-  private verify(body: {
-    noteId: number;
-    razorpayOrderId: string;
-    razorpayPaymentId: string;
-    razorpaySignature: string;
-  }) {
-    this.api.verifyPayment(body).subscribe({
-      next: r => {
-        this.buyLoading.set(false);
-        if (r.success) {
-          const n = this.note()!;
-          this.note.set({...n, isPurchased: true, purchaseCount: (n.purchaseCount || 0) + 1});
-        } else {
-          this.buyError.set(r.message);
-        }
-      },
-      error: err => {
-        this.buyLoading.set(false);
-        this.buyError.set(err?.error?.message || 'Payment verification failed.');
-      }
-    });
+  protected readonly initials = initials;
+
+  protected buy() {
+    if (!this.auth.isLoggedIn()) {
+      this.router.navigate(['/login']);
+      return;
+    }
+    if (this.purchasing()) return;
+    this.purchasing.set(true);
+    this.api
+      .purchaseNote(this.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.purchasing.set(false);
+          this.purchasedLocal.set(true);
+          this.toast.success('Purchase successful — happy studying!');
+        },
+        error: () => this.purchasing.set(false),
+      });
   }
 
-  private loadRazorpayScript(): Promise<void> {
-    if (typeof Razorpay !== 'undefined') return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve();
-      script.onerror = () => reject();
-      document.body.appendChild(script);
-    });
-  }
-
-  submitReview() {
-    if (!this.myRating) return;
-    this.reviewLoading.set(true);
-    this.api.submitReview(this.note()!.id, this.myRating, this.myComment).subscribe({
-      next: r => { this.reviewLoading.set(false); if (r.success) { this.reviewMsg.set('Review submitted! Thank you.'); this.loadReviews(this.note()!.id); } },
-      error: () => this.reviewLoading.set(false)
-    });
+  protected submitReview() {
+    if (this.submitting()) return;
+    this.submitting.set(true);
+    this.api
+      .submitReview(this.id, this.myRating(), this.myComment().trim())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.submitting.set(false);
+          this.toast.success('Thanks for your review!');
+          this.myComment.set('');
+          this.api
+            .getNoteReviews(this.id)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({ next: (r) => this.reviews.set(r.data?.content ?? []), error: () => {} });
+        },
+        error: () => this.submitting.set(false),
+      });
   }
 }

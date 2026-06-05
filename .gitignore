@@ -5,6 +5,13 @@ frontend/dist/
 frontend/out-tsc/
 frontend/.angular/
 
+# ─── Test artifacts ───────────────────────────────────
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
+
 # ─── Dependencies ─────────────────────────────────────
 frontend/node_modules/
 

@@ -1,137 +1,180 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
 import { ApiService } from '@core/services/api.service';
+import { ToastService } from '@core/services/toast.service';
+import { ConfirmService } from '@core/services/confirm.service';
 import { Note } from '@core/models';
+import { subjectGradientFlat } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-my-notes',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container page-body">
-  <div class="sh">
-    <h2 class="st">My Notes</h2>
-    <a routerLink="/seller/upload" class="btn btn-primary btn-sm">+ Upload New</a>
-  </div>
-
-  @if (loading()) { <div class="sw"><div class="sp"></div></div> }
-  @else if (notes().length === 0) {
-    <div class="es">
-      <div class="icon">📭</div>
-      <h3>No notes yet</h3>
-      <p>Start uploading your handwritten notes to earn money.</p>
-      <a routerLink="/seller/upload" class="btn btn-primary" style="margin-top:1rem">Upload First Note</a>
+    <div class="page-head">
+      <div>
+        <div class="crumb">Seller</div>
+        <h1>My notes</h1>
+        <p>Manage your catalogue, pricing and visibility.</p>
+      </div>
+      <div class="head-actions">
+        <a class="btn btn-primary" routerLink="/seller/upload"
+          ><svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          </svg>
+          Upload new</a
+        >
+      </div>
     </div>
-  } @else {
-    <div class="notes-list">
-      @for (n of notes(); track n.id) {
-        <div class="note-row">
-          <div class="nr-thumb">
-            @if (n.thumbnailUrl) { <img [src]="apiUrl + n.thumbnailUrl" alt="thumbnail"> }
-            @else { <span>📄</span> }
-          </div>
 
-          <div class="nr-info">
-            <div class="nr-title">{{ n.title }}</div>
-            <div style="display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:.35rem">
-              @if (n.classLevel) { <span class="badge badge-tl">{{ n.classLevel }}</span> }
-              @if (n.subject)    { <span class="badge badge-gd">{{ n.subject }}</span> }
-              @if (n.examType)   { <span class="badge badge-ik">{{ n.examType }}</span> }
-            </div>
-            <div class="nr-stats">
-              <span>🛒 {{ n.purchaseCount || 0 }} sales</span>
-              <span>⭐ {{ n.averageRating?.toFixed(1) || '—' }}</span>
-              <span>📝 {{ n.reviewCount || 0 }} reviews</span>
-            </div>
-          </div>
-
-          <div class="nr-price">
-            @if (editingId() === n.id) {
-              <div class="price-edit">
-                <input class="fc" type="number" [(ngModel)]="newPrice" min="1" style="width:100px">
-                <button class="btn btn-teal btn-sm" (click)="savePrice(n)">Save</button>
-                <button class="btn btn-outline btn-sm" (click)="editingId.set(null)">Cancel</button>
-              </div>
-            } @else {
-              <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:700;margin-bottom:.5rem">₹{{ n.price }}</div>
-              <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-                <button class="btn btn-outline btn-sm" (click)="startEdit(n)">Edit Price</button>
-                <a [routerLink]="['/notes', n.id]" class="btn btn-outline btn-sm">View</a>
-                <button class="btn btn-danger btn-sm" (click)="del(n)">Delete</button>
-              </div>
-            }
-          </div>
+    @if (loading()) {
+      <div class="skel" style="height:240px;border-radius:12px"></div>
+    } @else if (notes().length === 0) {
+      <div class="card empty">
+        <div class="e-ic">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M6 3h9l5 5v13H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linejoin="round"
+            />
+          </svg>
         </div>
-      }
-    </div>
-
-    @if (totalPages() > 1) {
-      <div class="pgn">
-        <button class="pb" (click)="go(page()-1)" [disabled]="page()===0">‹</button>
-        @for (i of pageArr(); track i) { <button class="pb" [class.active]="i===page()" (click)="go(i)">{{ i+1 }}</button> }
-        <button class="pb" (click)="go(page()+1)" [disabled]="page()>=totalPages()-1">›</button>
+        <h3>No notes yet</h3>
+        <p>Upload your first note to start selling.</p>
+        <a class="btn btn-primary" routerLink="/seller/upload">Upload a note</a>
+      </div>
+    } @else {
+      <div class="table-wrap responsive">
+        <table class="tn">
+          <thead>
+            <tr>
+              <th>Note</th>
+              <th>Status</th>
+              <th class="hide-mobile">Price</th>
+              <th class="hide-mobile">Sales</th>
+              <th class="hide-mobile">Rating</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (n of notes(); track n.id) {
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div
+                      style="width:40px;height:50px;border-radius:6px;flex:none;"
+                      [style.background]="thumbBg(n)"
+                    ></div>
+                    <div style="font-weight:700;">{{ n.title }}</div>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge" [class]="'badge ' + statusBadge(n.status)">{{ statusLabel(n.status) }}</span>
+                </td>
+                <td class="hide-mobile">
+                  <div class="price-edit">
+                    <span>₹</span
+                    ><input
+                      type="number"
+                      [value]="n.price"
+                      #pi
+                      (keyup.enter)="savePrice(n, pi.value)"
+                      aria-label="Price"
+                    /><button class="btn btn-ghost btn-sm" (click)="savePrice(n, pi.value)">Save</button>
+                  </div>
+                </td>
+                <td class="hide-mobile">{{ n.purchaseCount || 0 }}</td>
+                <td class="hide-mobile">{{ n.averageRating ? '★ ' + n.averageRating.toFixed(1) : '—' }}</td>
+                <td>
+                  <div class="tbl-actions">
+                    @if (n.status !== 'DELETED') {
+                      <button class="btn btn-ghost btn-sm" (click)="remove(n)">Delete</button>
+                    } @else {
+                      <span class="muted" style="font-size:13px;">Removed</span>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
     }
-  }
-</div>
-</div>
   `,
-  styles: [`
-    .notes-list { display:flex; flex-direction:column; gap:.75rem; }
-    .note-row { background:#fff; border-radius:16px; padding:1.1rem 1.25rem; box-shadow:var(--sh); display:flex; align-items:center; gap:1.1rem; flex-wrap:wrap; transition:box-shadow var(--t); }
-    .note-row:hover { box-shadow:var(--shm); }
-    .nr-thumb { width:56px; height:56px; border-radius:10px; overflow:hidden; background:var(--cr2); display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
-    .nr-thumb img { width:100%; height:100%; object-fit:cover; }
-    .nr-info { flex:1; min-width:200px; }
-    .nr-title { font-weight:700; font-size:.9rem; margin-bottom:.35rem; }
-    .nr-stats { display:flex; gap:1rem; font-size:.78rem; color:var(--mu); flex-wrap:wrap; margin-top:.3rem; }
-    .nr-price { display:flex; flex-direction:column; align-items:flex-end; }
-    .price-edit { display:flex; gap:.4rem; align-items:center; flex-wrap:wrap; }
-  `]
 })
-export class MyNotesComponent implements OnInit {
-  notes      = signal<Note[]>([]);
-  loading    = signal(true);
-  page       = signal(0);
-  totalPages = signal(0);
-  editingId  = signal<number | null>(null);
-  newPrice   = 0;
-  apiUrl     = '';
+export class MyNotesComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private confirm = inject(ConfirmService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private api: ApiService) {
-    this.apiUrl = api.base.replace('/api', '');
+  protected notes = signal<Note[]>([]);
+  protected loading = signal(true);
+
+  constructor() {
+    this.load();
   }
 
-  ngOnInit() { this.load(); }
+  private load() {
+    this.loading.set(true);
+    this.api
+      .getSellerNotes(0)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.notes.set(r.data?.content ?? []);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+  }
 
-  load(p = 0) {
-    this.loading.set(true); this.page.set(p);
-    this.api.getSellerNotes(p).subscribe(r => {
-      this.loading.set(false);
-      if (r.success) { this.notes.set(r.data.content); this.totalPages.set(r.data.totalPages); }
+  protected savePrice(n: Note, value: string) {
+    const price = Number(value);
+    if (!price || price === n.price) return;
+    this.api
+      .updateNotePrice(n.id, price)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success('Price updated');
+          this.notes.update((list) => list.map((x) => (x.id === n.id ? { ...x, price } : x)));
+        },
+        error: () => {},
+      });
+  }
+
+  protected async remove(n: Note) {
+    const ok = await this.confirm.ask({
+      title: 'Delete note?',
+      message: `"${n.title}" will be removed from the marketplace.`,
+      confirmText: 'Delete',
+      danger: true,
     });
+    if (!ok) return;
+    this.api
+      .deleteNote(n.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.success('Note deleted');
+          this.load();
+        },
+        error: () => {},
+      });
   }
 
-  startEdit(n: Note) { this.editingId.set(n.id); this.newPrice = n.price; }
-
-  savePrice(n: Note) {
-    this.api.updateNotePrice(n.id, this.newPrice).subscribe(r => {
-      if (r.success) { n.price = this.newPrice; this.editingId.set(null); }
-    });
+  protected thumbBg(n: Note): string {
+    return subjectGradientFlat(n.subject);
   }
-
-  del(n: Note) {
-    if (!confirm(`Delete "${n.title}"? This cannot be undone.`)) return;
-    this.api.deleteNote(n.id).subscribe(r => {
-      if (r.success) this.notes.update(ns => ns.filter(x => x.id !== n.id));
-    });
+  protected statusBadge(s?: string): string {
+    return s === 'ACTIVE' ? 'badge-success' : s === 'INACTIVE' ? 'badge-warning' : 'badge-muted';
   }
-
-  go(p: number) { if (p < 0 || p >= this.totalPages()) return; this.load(p); }
-  pageArr() { return Array.from({ length: this.totalPages() }, (_, i) => i); }
+  protected statusLabel(s?: string): string {
+    return s === 'ACTIVE' ? 'Active' : s === 'INACTIVE' ? 'Draft' : 'Deleted';
+  }
 }

@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TopNotes — Log in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  /* ============================================================
+     TopNotes — Design tokens
+     ============================================================ */
+  :root {
+    /* Brand */
+    --indigo-900: #2A2070;
+    --indigo-800: #3B2F8F;
+    --indigo-600: #5B4BE0;
+    --indigo-50:  #EEEBFB;
+    --amber:      #F5A524;
+    --amber-soft: #FDECC8;
+
+    /* Semantic */
+    --success: #16A34A;
+    --danger:  #DC2626;
+    --danger-bg: #FEF2F2;
+    --warning: #D97706;
+
+    /* Neutrals */
+    --ink:     #0F1222;
+    --slate:   #475467;
+    --muted:   #98A2B3;
+    --line:    #EAECF0;
+    --surface: #FFFFFF;
+    --canvas:  #F7F8FA;
+
+    /* Type scale */
+    --t-12: 12px;
+    --t-14: 14px;
+    --t-16: 16px;
+    --t-20: 20px;
+    --t-24: 24px;
+    --t-32: 32px;
+    --t-40: 40px;
+
+    /* Radius */
+    --r-card: 12px;
+    --r-ctrl: 8px;
+    --r-pill: 999px;
+
+    /* Shadow */
+    --sh-sm: 0 1px 2px rgba(16,18,34,.06);
+    --sh-md: 0 1px 2px rgba(16,18,34,.04), 0 8px 24px rgba(16,18,34,.08);
+    --sh-lg: 0 1px 2px rgba(16,18,34,.04), 0 16px 40px rgba(16,18,34,.12);
+
+    /* Focus */
+    --ring: 0 0 0 4px rgba(91,75,224,.22);
+
+    --ease: 180ms cubic-bezier(.4,0,.2,1);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: var(--canvas);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  }
+
+  /* ============================================================
+     Layout shell
+     ============================================================ */
+  .shell {
+    min-height: 100%;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+  }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+  }
+
+  /* ============================================================
+     Brand panel (left)
+     ============================================================ */
+  .brand {
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    background:
+      radial-gradient(120% 90% at 12% 8%, rgba(91,75,224,.55) 0%, rgba(91,75,224,0) 55%),
+      radial-gradient(120% 120% at 95% 100%, rgba(245,165,36,.30) 0%, rgba(245,165,36,0) 50%),
+      linear-gradient(160deg, var(--indigo-900) 0%, var(--indigo-800) 48%, #34287d 100%);
+    padding: 56px 64px;
+    display: flex;
+    flex-direction: column;
+  }
+  /* faint ruled-paper motif */
+  .brand::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,.05) 0 1px, transparent 1px 38px);
+    -webkit-mask-image: radial-gradient(80% 80% at 70% 30%, #000 0%, transparent 75%);
+            mask-image: radial-gradient(80% 80% at 70% 30%, #000 0%, transparent 75%);
+    pointer-events: none;
+  }
+  .brand > * { position: relative; z-index: 1; }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: var(--t-20);
+    letter-spacing: -.01em;
+  }
+  .logo-mark {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    background: linear-gradient(150deg, #fff 0%, #EEEBFB 100%);
+    color: var(--indigo-800);
+    font-weight: 800;
+    font-size: var(--t-20);
+    box-shadow: var(--sh-sm);
+  }
+  .logo-mark span { transform: translateY(-1px); }
+
+  .brand-body {
+    margin-top: auto;
+    margin-bottom: auto;
+    padding: 48px 0;
+    max-width: 440px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--t-12);
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--amber);
+    background: rgba(245,165,36,.12);
+    border: 1px solid rgba(245,165,36,.28);
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
+  }
+  .brand-headline {
+    margin: 24px 0 0;
+    font-size: var(--t-40);
+    line-height: 1.12;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+  }
+  .brand-headline em {
+    font-style: normal;
+    color: var(--amber);
+  }
+  .brand-sub {
+    margin: 18px 0 0;
+    font-size: var(--t-16);
+    line-height: 1.55;
+    color: rgba(255,255,255,.74);
+    max-width: 380px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: 36px;
+    margin-top: 44px;
+  }
+  .stat-num {
+    font-size: var(--t-32);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1;
+  }
+  .stat-num small { font-size: var(--t-20); }
+  .stat-label {
+    margin-top: 8px;
+    font-size: var(--t-12);
+    color: rgba(255,255,255,.62);
+    letter-spacing: .01em;
+  }
+
+  .brand-foot {
+    font-size: var(--t-12);
+    color: rgba(255,255,255,.5);
+  }
+
+  /* ============================================================
+     Auth panel (right)
+     ============================================================ */
+  .auth {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    background: var(--canvas);
+  }
+  .card {
+    width: 100%;
+    max-width: 408px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--sh-md);
+    padding: 40px;
+  }
+  .card-head h1 {
+    margin: 0;
+    font-size: var(--t-32);
+    font-weight: 800;
+    letter-spacing: -.02em;
+  }
+  .card-head p {
+    margin: 8px 0 0;
+    font-size: var(--t-14);
+    color: var(--slate);
+  }
+
+  /* Alert (error banner) */
+  .alert {
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 24px;
+    padding: 12px 14px;
+    border-radius: var(--r-ctrl);
+    background: var(--danger-bg);
+    border: 1px solid #FCDCDC;
+    color: #B42318;
+    font-size: var(--t-14);
+    line-height: 1.45;
+  }
+  .alert svg { flex: none; margin-top: 1px; }
+  body[data-state="error"] .alert { display: flex; }
+
+  form { margin-top: 24px; }
+  .field { margin-bottom: 18px; }
+  .field label {
+    display: block;
+    font-size: var(--t-14);
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 7px;
+  }
+  .label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .input-wrap { position: relative; }
+  .input {
+    width: 100%;
+    height: 46px;
+    padding: 0 14px;
+    font: inherit;
+    font-size: var(--t-16);
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-ctrl);
+    transition: border-color var(--ease), box-shadow var(--ease);
+  }
+  .input::placeholder { color: var(--muted); }
+  .input:hover { border-color: #D6DAE1; }
+  .input:focus {
+    outline: none;
+    border-color: var(--indigo-600);
+    box-shadow: var(--ring);
+  }
+  .has-toggle .input { padding-right: 46px; }
+  /* error field styling */
+  body[data-state="error"] .field.invalid .input {
+    border-color: var(--danger);
+  }
+  body[data-state="error"] .field.invalid .input:focus {
+    box-shadow: 0 0 0 4px rgba(220,38,38,.18);
+  }
+  .field-err {
+    display: none;
+    margin-top: 7px;
+    font-size: var(--t-12);
+    color: var(--danger);
+  }
+  body[data-state="error"] .field.invalid .field-err { display: block; }
+
+  .toggle-pw {
+    position: absolute;
+    top: 0; right: 0;
+    height: 46px;
+    width: 44px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: var(--r-ctrl);
+  }
+  .toggle-pw:hover { color: var(--slate); }
+  .toggle-pw:focus-visible { outline: none; box-shadow: var(--ring); color: var(--indigo-600); }
+
+  .link {
+    color: var(--indigo-600);
+    font-weight: 600;
+    font-size: var(--t-14);
+    text-decoration: none;
+    border-radius: 4px;
+  }
+  .link:hover { color: var(--indigo-800); text-decoration: underline; }
+  .link:focus-visible { outline: none; box-shadow: var(--ring); }
+
+  /* Button */
+  .btn {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font: inherit;
+    font-size: var(--t-16);
+    font-weight: 700;
+    color: #fff;
+    background: var(--indigo-800);
+    border: none;
+    border-radius: var(--r-ctrl);
+    cursor: pointer;
+    transition: background var(--ease), transform var(--ease), box-shadow var(--ease);
+    box-shadow: var(--sh-sm);
+  }
+  .btn:hover { background: var(--indigo-900); }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible { outline: none; box-shadow: var(--ring); }
+  .btn:disabled { cursor: not-allowed; opacity: 1; }
+  body[data-state="loading"] .btn {
+    background: var(--indigo-600);
+    cursor: progress;
+  }
+  .btn .label { transition: opacity var(--ease); }
+  .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  body[data-state="loading"] .spinner { display: block; }
+  body[data-state="loading"] .btn .label { opacity: .85; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 24px 0;
+    color: var(--muted);
+    font-size: var(--t-12);
+    font-weight: 500;
+  }
+  .divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+
+  .signup {
+    text-align: center;
+    font-size: var(--t-14);
+    color: var(--slate);
+  }
+
+  .legal {
+    margin-top: 28px;
+    text-align: center;
+    font-size: var(--t-12);
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .legal a { color: var(--slate); text-decoration: none; }
+  .legal a:hover { text-decoration: underline; }
+
+  .hint {
+    margin-top: 18px;
+    padding: 9px 12px;
+    border-radius: var(--r-ctrl);
+    background: var(--indigo-50);
+    border: 1px solid #E0DBF7;
+    font-size: var(--t-12);
+    color: var(--indigo-800);
+    text-align: center;
+  }
+  .hint code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 600;
+  }
+
+  /* ============================================================
+     Mobile slim header
+     ============================================================ */
+  .mobile-head { display: none; }
+  @media (max-width: 900px) {
+    .brand { display: none; }
+    .auth { padding: 0; align-items: stretch; background: var(--canvas); }
+    .card {
+      max-width: 480px;
+      margin: 0 auto;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 32px 24px 48px;
+    }
+    .mobile-head {
+      display: block;
+      background:
+        radial-gradient(120% 140% at 90% 0%, rgba(245,165,36,.28) 0%, rgba(245,165,36,0) 55%),
+        linear-gradient(135deg, var(--indigo-900), var(--indigo-800));
+      color: #fff;
+      padding: 22px 24px;
+    }
+    .mobile-head .logo { font-size: var(--t-16); }
+    .mobile-head .logo-mark { width: 32px; height: 32px; font-size: var(--t-16); }
+    .mobile-head .tagline {
+      margin: 14px 0 0;
+      font-size: var(--t-16);
+      font-weight: 700;
+      line-height: 1.3;
+      max-width: 300px;
+    }
+    .mobile-head .tagline em { font-style: normal; color: var(--amber); }
+  }
+  @media (min-width: 901px) { .mobile-head { display: none !important; } }
+
+  @media (max-width: 360px) {
+    .card { padding: 28px 18px 40px; }
+    .card-head h1 { font-size: var(--t-24); }
+  }
+
+  /* ============================================================
+     Demo state switcher (not part of product UI)
+     ============================================================ */
+  .demo {
+    position: fixed;
+    bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px;
+    background: rgba(15,18,34,.9);
+    backdrop-filter: blur(8px);
+    border-radius: var(--r-pill);
+    box-shadow: var(--sh-lg);
+    z-index: 50;
+  }
+  .demo span {
+    font-size: var(--t-12);
+    color: rgba(255,255,255,.55);
+    padding: 0 10px 0 8px;
+    font-weight: 600;
+  }
+  .demo button {
+    font: inherit;
+    font-size: var(--t-12);
+    font-weight: 600;
+    color: rgba(255,255,255,.7);
+    background: none;
+    border: none;
+    padding: 7px 14px;
+    border-radius: var(--r-pill);
+    cursor: pointer;
+    transition: background var(--ease), color var(--ease);
+  }
+  .demo button:hover { color: #fff; }
+  .demo button[aria-pressed="true"] {
+    background: #fff;
+    color: var(--ink);
+  }
+  .demo button:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,.4); }
+</style>
+</head>
+<body data-state="default">
+
+  <div class="shell">
+
+    <!-- ============ BRAND PANEL ============ -->
+    <aside class="brand">
+      <a class="logo" href="#" aria-label="TopNotes home">
+        <span class="logo-mark"><span>T</span></span>
+        TopNotes
+      </a>
+
+      <div class="brand-body">
+        <span class="eyebrow">★ Verified toppers only</span>
+        <h2 class="brand-headline">Notes from real toppers, <em>verified.</em></h2>
+        <p class="brand-sub">Handwritten study notes from students who actually cracked JEE, NEET &amp; Boards — reviewed and rank-checked before they reach you.</p>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-num">2,400<small>+</small></div>
+            <div class="stat-label">Verified toppers</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num">180k<small>+</small></div>
+            <div class="stat-label">Pages sold</div>
+          </div>
+          <div class="stat">
+            <div class="stat-num">4.9<small>★</small></div>
+            <div class="stat-label">Avg. rating</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="brand-foot">Trusted by aspirants across 320+ cities in India.</p>
+    </aside>
+
+    <!-- ============ AUTH PANEL ============ -->
+    <main class="auth">
+      <div class="mobile-head">
+        <a class="logo" href="#" aria-label="TopNotes home">
+          <span class="logo-mark"><span>T</span></span>
+          TopNotes
+        </a>
+        <p class="tagline">Notes from real toppers, <em>verified.</em></p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h1>Welcome back</h1>
+          <p>Log in to access your notes library.</p>
+        </div>
+
+        <div class="alert" role="alert">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="10" cy="10" r="8" stroke="#DC2626" stroke-width="1.6"/>
+            <path d="M10 6.2v4.3" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
+            <circle cx="10" cy="13.6" r="1" fill="#DC2626"/>
+          </svg>
+          <div>The email or password you entered is incorrect. Please try again.</div>
+        </div>
+
+        <form id="loginForm" novalidate>
+          <div class="field" id="emailField">
+            <label for="email">Email</label>
+            <div class="input-wrap">
+              <input class="input" type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" value="topper@topnotes.in" />
+            </div>
+            <div class="field-err">Enter a valid email address.</div>
+          </div>
+
+          <div class="field invalid" id="pwField">
+            <div class="label-row">
+              <label for="password">Password</label>
+              <a class="link" href="#">Forgot password?</a>
+            </div>
+            <div class="input-wrap has-toggle">
+              <input class="input" type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" value="wrongpass" />
+              <button type="button" class="toggle-pw" id="togglePw" aria-label="Show password">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10Z" stroke="currentColor" stroke-width="1.5"/>
+                  <circle cx="10" cy="10" r="2.2" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+              </button>
+            </div>
+            <div class="field-err">Incorrect password.</div>
+          </div>
+
+          <button type="submit" class="btn" id="submitBtn">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="label">Log in</span>
+          </button>
+        </form>
+
+        <div class="divider">OR</div>
+
+        <p class="signup">New here? <a class="link" href="Register.html">Create account</a></p>
+
+        <p class="hint">Demo — try <code>topper@topnotes.in</code> / <code>study123</code></p>
+
+        <p class="legal">By continuing you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a>.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- Demo state switcher -->
+  <div class="demo" role="group" aria-label="Preview states">
+    <span>States</span>
+    <button type="button" data-go="default" aria-pressed="true">Default</button>
+    <button type="button" data-go="loading" aria-pressed="false">Loading</button>
+    <button type="button" data-go="error" aria-pressed="false">Error</button>
+  </div>
+
+<script>
+  const body = document.body;
+  const form = document.getElementById('loginForm');
+  const emailInput = document.getElementById('email');
+  const pwInput = document.getElementById('password');
+  const emailField = document.getElementById('emailField');
+  const pwField = document.getElementById('pwField');
+  const submitBtn = document.getElementById('submitBtn');
+  const demoBtns = document.querySelectorAll('.demo button');
+
+  const VALID = { email: 'topper@topnotes.in', password: 'study123' };
+
+  function setState(state) {
+    body.dataset.state = state;
+    submitBtn.disabled = (state === 'loading');
+    demoBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.go === state)));
+  }
+
+  // Demo switcher — set up representative content per state
+  demoBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const go = btn.dataset.go;
+      if (go === 'error') {
+        emailInput.value = VALID.email;
+        pwInput.value = 'wrongpass';
+        emailField.classList.remove('invalid');
+        pwField.classList.add('invalid');
+      } else {
+        pwField.classList.remove('invalid');
+        emailField.classList.remove('invalid');
+      }
+      setState(go);
+    });
+  });
+
+  // Password visibility toggle
+  document.getElementById('togglePw').addEventListener('click', (e) => {
+    const showing = pwInput.type === 'text';
+    pwInput.type = showing ? 'password' : 'text';
+    e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  });
+
+  // Real submit flow: validate -> loading -> result
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (body.dataset.state === 'loading') return;
+
+    // basic field validation
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.value.trim());
+    emailField.classList.toggle('invalid', !emailOk);
+    if (!emailOk) { setState('error'); emailInput.focus(); return; }
+    emailField.classList.remove('invalid');
+
+    setState('loading');
+    setTimeout(() => {
+      const ok = emailInput.value.trim() === VALID.email && pwInput.value === VALID.password;
+      if (ok) {
+        pwField.classList.remove('invalid');
+        setState('default');
+        submitBtn.querySelector('.label').textContent = 'Success ✓';
+        submitBtn.style.background = 'var(--success)';
+        setTimeout(() => { window.location.href = 'App.html#/browse'; }, 700);
+      } else {
+        pwField.classList.add('invalid');
+        setState('error');
+      }
+    }, 1500);
+  });
+</script>
+</body>
+</html>

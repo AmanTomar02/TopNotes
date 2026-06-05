@@ -1,166 +1,424 @@
-/* ── auth.css — shared by login & register ──────────────────── */
-.auth-shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-}
+/* ============================================================
+   Shared styles for projected auth content (login + register).
+   Layout/brand panel live in AuthShellComponent; form inputs in
+   TextFieldComponent. This file styles the brand body + card body.
+   ============================================================ */
 
-/* ── Left panel ─────────────────────────────────────────────── */
-.auth-left {
-  background: var(--ink);
-  display: flex;
+/* ── Brand body (projected into the shell) ─────────────────── */
+.eyebrow {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 3rem 3.5rem;
-  position: relative;
-  overflow: hidden;
+  gap: 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  background: rgba(245, 165, 36, 0.12);
+  border: 1px solid rgba(245, 165, 36, 0.28);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
 }
-.auth-left::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 70% 70% at 80% 30%, rgba(30,107,107,.35), transparent 70%),
-    radial-gradient(ellipse 50% 60% at 5%  80%, rgba(201,168,76,.2),  transparent 60%);
-}
-.al-inner { position: relative; max-width: 400px; }
-
-.al-logo {
-  display: flex;
-  align-items: center;
-  gap: .55rem;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 1.3rem;
-  font-weight: 700;
+.brand-headline {
+  margin: 24px 0 0;
+  font-size: var(--text-3xl);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   color: #fff;
-  margin-bottom: 3rem;
+  text-wrap: balance;
 }
-.al-lm {
-  width: 32px; height: 32px;
-  background: var(--gd);
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
+.brand-headline em {
+  font-style: normal;
+  color: var(--c-accent);
 }
-.al-lm svg { width: 18px; height: 18px; }
-
-.auth-left h1 {
-  font-size: clamp(1.8rem, 3.5vw, 2.6rem);
-  color: #fff;
-  line-height: 1.1;
-  margin-bottom: 1rem;
-}
-.auth-left h1 em { color: var(--gd); font-style: normal; }
-.auth-left p { color: rgba(255,255,255,.58); font-size: .92rem; line-height: 1.7; margin-bottom: 2.5rem; }
-
-.al-stats { display: flex; gap: 2.5rem; }
-.al-stats div { display: flex; flex-direction: column; }
-.al-stats strong { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; color: var(--gd); font-weight: 700; display: block; }
-.al-stats span   { font-size: .7rem; color: rgba(255,255,255,.4); font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
-
-/* ── Right panel ────────────────────────────────────────────── */
-.auth-right {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2.5rem 2rem;
-  background: var(--cr);
-}
-
-.auth-card {
-  width: 100%;
+.brand-sub {
+  margin: 18px 0 0;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.74);
   max-width: 400px;
-  background: #fff;
-  border-radius: 24px;
-  padding: 2.5rem;
-  box-shadow: var(--shl);
 }
-.auth-card h2 { font-size: 1.8rem; margin-bottom: .3rem; }
-.auth-sub { color: var(--mu); font-size: .85rem; margin-bottom: 1.75rem; }
 
-/* ── Password field ──────────────────────────────────────────── */
-.pw-wrap { position: relative; }
-.pw-wrap .fc { padding-right: 2.8rem; }
-.eye {
-  position: absolute; right: .8rem; top: 50%;
-  transform: translateY(-50%);
-  background: none; border: none; cursor: pointer;
-  font-size: .9rem; padding: .2rem; line-height: 1;
-  color: var(--mu); transition: color var(--t);
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 36px;
+  margin-top: 44px;
 }
-.eye:hover { color: var(--ink); }
-
-/* ── Divider ─────────────────────────────────────────────────── */
-.auth-or {
-  display: flex; align-items: center; gap: .75rem;
-  font-size: .8rem; color: var(--mu);
-  margin: 1.25rem 0;
+.stat-num {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: #fff;
 }
-.auth-or::before,.auth-or::after { content:''; flex:1; height:1px; background:var(--cr3); }
+.stat-num small {
+  font-size: var(--text-lg);
+}
+.stat-label {
+  margin-top: 8px;
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.62);
+}
 
-/* ── Footer link ─────────────────────────────────────────────── */
-.auth-footer { display: flex; justify-content: center; gap: .45rem; font-size: .85rem; color: var(--mu); }
-.auth-footer a { color: var(--tl); font-weight: 600; }
-
-/* ── Button spinner ──────────────────────────────────────────── */
-.sp-btn {
-  width: 16px; height: 16px;
-  border: 2px solid rgba(255,255,255,.4);
-  border-top-color: #fff;
+.perks {
+  list-style: none;
+  margin: 36px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+.perks li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--text-base);
+  color: rgba(255, 255, 255, 0.88);
+}
+.perks .tick {
+  flex: none;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  animation: spin .7s linear infinite;
+  display: grid;
+  place-items: center;
+  background: rgba(245, 165, 36, 0.18);
+  border: 1px solid rgba(245, 165, 36, 0.4);
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Role toggle ─────────────────────────────────────────────── */
-.role-toggle { display: flex; gap: .45rem; }
-.role-btn {
-  flex: 1; padding: .55rem;
-  border: 1.5px solid var(--cr3);
-  border-radius: 10px;
-  background: #fff;
-  font-family: 'Outfit', sans-serif;
-  font-size: .84rem;
-  cursor: pointer;
-  color: var(--mu);
-  transition: all var(--t);
-  text-align: center;
+/* ── Card body ─────────────────────────────────────────────── */
+.card-head h1 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.card-head p {
+  margin: 8px 0 0;
+  font-size: var(--text-sm);
+  color: var(--c-text);
+}
+
+.link {
+  color: var(--c-primary-bright);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  border-radius: 4px;
+}
+.link:hover {
+  color: var(--c-primary);
+  text-decoration: underline;
+}
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 24px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--c-danger-50);
+  border: 1px solid #fcdcdc;
+  color: #b42318;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+.alert svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+form {
+  margin-top: 24px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 24px 0;
+  color: var(--c-muted);
+  font-size: var(--text-xs);
   font-weight: 500;
 }
-.role-btn.active {
-  background: var(--ink); color: #fff;
-  border-color: var(--ink);
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--c-line);
+}
+
+.signup {
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--c-text);
+}
+.legal {
+  margin-top: 26px;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--c-muted);
+  line-height: 1.5;
+}
+.legal a {
+  color: var(--c-text);
+}
+.legal a:hover {
+  text-decoration: underline;
+}
+
+/* ── Register: stepper ─────────────────────────────────────── */
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--c-muted);
+}
+.steps .step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.steps .dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--c-canvas);
+  border: 1px solid var(--c-line);
+  color: var(--c-muted);
+}
+.steps .seg {
+  flex: 1;
+  height: 2px;
+  background: var(--c-line);
+  border-radius: 2px;
+  transition: background var(--transition);
+}
+.steps .seg.on {
+  background: var(--c-primary);
+}
+.steps .on .dot {
+  background: var(--c-primary);
+  border-color: var(--c-primary);
+  color: #fff;
+}
+.steps .on .lbl {
+  color: var(--c-ink);
+}
+
+/* ── Register: role cards ──────────────────────────────────── */
+.roles {
+  display: grid;
+  gap: 14px;
+  margin-top: 26px;
+}
+.role {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  border: 1.5px solid var(--c-line);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  background: var(--c-surface);
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition),
+    background var(--transition);
+}
+.role:hover {
+  border-color: #c9c2f2;
+}
+.role input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.role:has(input:focus-visible) {
+  box-shadow: var(--ring);
+  border-color: var(--c-primary-bright);
+}
+.role:has(input:checked) {
+  border-color: var(--c-primary-bright);
+  background: linear-gradient(0deg, rgba(91, 75, 224, 0.03), rgba(91, 75, 224, 0.03)), var(--c-surface);
+  box-shadow: 0 0 0 1px var(--c-primary-bright);
+}
+.role-ic {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--c-primary-50);
+  color: var(--c-primary);
+}
+.role:has(input:checked) .role-ic {
+  background: var(--c-primary);
+  color: #fff;
+}
+.role.seller:has(input:checked) .role-ic {
+  background: var(--c-accent);
+  color: #3a2a05;
+}
+.role-txt h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+.role-txt p {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--c-text);
+  line-height: 1.45;
+}
+.role-check {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c-line);
+  display: grid;
+  place-items: center;
+  transition: var(--transition);
+}
+.role-check svg {
+  opacity: 0;
+  transition: var(--transition);
+}
+.role:has(input:checked) .role-check {
+  background: var(--c-primary-bright);
+  border-color: var(--c-primary-bright);
+}
+.role:has(input:checked) .role-check svg {
+  opacity: 1;
+}
+
+/* ── Register: back button + role pill + seller note ───────── */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--c-text);
+  padding: 4px 0;
+  border-radius: 4px;
+}
+.back-btn:hover {
+  color: var(--c-ink);
+}
+.back-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 7px 14px 7px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--c-primary-50);
+  border: 1px solid #e0dbf7;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--c-primary);
+}
+.role-pill .mini {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--c-primary);
+  color: #fff;
+}
+.role-pill.seller .mini {
+  background: var(--c-accent);
+  color: #3a2a05;
+}
+
+.seller-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: #fff9ef;
+  border: 1px solid var(--c-accent-50);
+  color: #8a5a06;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+.seller-note svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* ── Register: password strength ───────────────────────────── */
+.strength {
+  margin: -8px 0 18px;
+}
+.strength-bars {
+  display: flex;
+  gap: 6px;
+}
+.strength-bars i {
+  flex: 1;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--c-line);
+  transition: background var(--transition);
+}
+.strength-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 7px;
+  font-size: var(--text-xs);
+  color: var(--c-muted);
+}
+.strength-label {
   font-weight: 600;
 }
-
-/* ── Register: teal left ─────────────────────────────────────── */
-.auth-left.teal {
-  background: linear-gradient(155deg, var(--tl) 0%, #0f3f3f 100%);
+.strength[data-level='1'] i:nth-child(-n + 1) {
+  background: var(--c-danger);
 }
-.auth-left.teal::before {
-  background:
-    radial-gradient(ellipse 60% 60% at 80% 20%, rgba(201,168,76,.2), transparent 70%),
-    radial-gradient(ellipse 50% 50% at 10% 90%, rgba(12,11,20,.3),   transparent 70%);
+.strength[data-level='2'] i:nth-child(-n + 2) {
+  background: var(--c-warning);
 }
-
-/* ── Role cards (register left panel) ───────────────────────── */
-.role-cards { display: flex; gap: .85rem; margin-top: 2rem; }
-.rc {
-  flex: 1;
-  background: rgba(255,255,255,.08);
-  border: 1.5px solid rgba(255,255,255,.15);
-  border-radius: 14px;
-  padding: 1.1rem;
-  cursor: pointer;
-  transition: all var(--t);
+.strength[data-level='3'] i:nth-child(-n + 3) {
+  background: #65a30d;
 }
-.rc.active { background: rgba(255,255,255,.18); border-color: var(--gd); }
-.rc .ri { font-size: 1.5rem; margin-bottom: .4rem; }
-.rc strong { display: block; color: #fff; font-size: .9rem; margin-bottom: .2rem; }
-.rc span   { font-size: .75rem; color: rgba(255,255,255,.5); }
-
-/* ── Responsive ──────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .auth-shell { grid-template-columns: 1fr; }
-  .auth-left  { display: none; }
-  .auth-right { min-height: 100vh; padding: 2rem 1.25rem; }
+.strength[data-level='4'] i {
+  background: var(--c-success);
+}
+.strength[data-level='1'] .strength-label {
+  color: var(--c-danger);
+}
+.strength[data-level='2'] .strength-label {
+  color: var(--c-warning);
+}
+.strength[data-level='3'] .strength-label {
+  color: #4d7c0f;
+}
+.strength[data-level='4'] .strength-label {
+  color: var(--c-success);
 }

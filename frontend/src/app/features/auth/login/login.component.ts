@@ -1,101 +1,137 @@
-import { Component, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
 import { AuthService } from '@core/services/auth.service';
+import { AuthShellComponent } from '../ui/auth-shell.component';
+import { TextFieldComponent } from '@ui/text-field/text-field.component';
+import { ButtonComponent } from '@ui/button/button.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, RouterLink, AuthShellComponent, TextFieldComponent, ButtonComponent],
+  styleUrls: ['../auth.css'],
   template: `
-<div class="auth-shell">
-
-  <!-- Left Panel -->
-  <div class="auth-left">
-    <div class="al-inner">
-      <a routerLink="/browse" class="al-logo">
-        <div class="al-lm"><svg viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
-        TopNotes
-      </a>
-      <h1>Knowledge shared,<br><em>futures built.</em></h1>
-      <p>Access handwritten notes by India's verified toppers — trusted by 50,000+ students preparing for JEE, NEET, and Board exams.</p>
-      <div class="al-stats">
-        <div><strong>500+</strong><span>Verified Sellers</span></div>
-        <div><strong>12k+</strong><span>Notes Available</span></div>
-        <div><strong>4.8★</strong><span>Avg Rating</span></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Right Panel: Form -->
-  <div class="auth-right">
-    <div class="auth-card fi">
-      <h2>Welcome back</h2>
-      <p class="auth-sub">Sign in to continue learning</p>
-
-      @if (error()) {
-        <div class="alert alert-error">{{ error() }}</div>
-      }
-
-      <form (ngSubmit)="submit()" #f="ngForm">
-        <div class="fg">
-          <label class="fl">Email Address</label>
-          <input class="fc" type="email" [(ngModel)]="email" name="email"
-                 placeholder="you@email.com" required autocomplete="email">
-        </div>
-        <div class="fg">
-          <label class="fl">Password</label>
-          <div class="pw-wrap">
-            <input class="fc" [type]="showPwd ? 'text' : 'password'"
-                   [(ngModel)]="password" name="password"
-                   placeholder="Your password" required autocomplete="current-password">
-            <button type="button" class="eye" (click)="showPwd = !showPwd">
-              {{ showPwd ? '🙈' : '👁️' }}
-            </button>
+    <app-auth-shell>
+      <div brand>
+        <span class="eyebrow">★ Verified toppers only</span>
+        <h2 class="brand-headline">Notes from real toppers, <em>verified.</em></h2>
+        <p class="brand-sub">
+          Handwritten study notes from students who actually cracked JEE, NEET &amp; Boards — reviewed and rank-checked
+          before they reach you.
+        </p>
+        <div class="stats">
+          <div>
+            <div class="stat-num">2,400<small>+</small></div>
+            <div class="stat-label">Verified toppers</div>
+          </div>
+          <div>
+            <div class="stat-num">180k<small>+</small></div>
+            <div class="stat-label">Pages sold</div>
+          </div>
+          <div>
+            <div class="stat-num">4.9<small>★</small></div>
+            <div class="stat-label">Avg. rating</div>
           </div>
         </div>
-        <button class="btn btn-primary btn-blk btn-lg" type="submit" [disabled]="loading()">
-          @if (loading()) { <span class="sp-btn"></span> }
-          {{ loading() ? 'Signing in…' : 'Sign In' }}
-        </button>
-      </form>
-
-      <div class="auth-or"><span>or</span></div>
-      <div class="auth-footer">
-        <span>Don't have an account?</span>
-        <a routerLink="/register">Create one free →</a>
       </div>
-    </div>
-  </div>
 
-</div>
+      <div card>
+        <div class="card-head">
+          <h1>Welcome back</h1>
+          <p>Log in to access your notes library.</p>
+        </div>
+
+        @if (errorMsg(); as msg) {
+          <div class="alert" role="alert">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <circle cx="10" cy="10" r="8" stroke="#DC2626" stroke-width="1.6" />
+              <path d="M10 6.2v4.3" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round" />
+              <circle cx="10" cy="13.6" r="1" fill="#DC2626" />
+            </svg>
+            <div>{{ msg }}</div>
+          </div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <app-text-field
+            label="Email"
+            type="email"
+            formControlName="email"
+            placeholder="you@example.com"
+            autocomplete="email"
+            [invalid]="invalid('email')"
+            [error]="emailError()"
+          />
+
+          <app-text-field
+            label="Password"
+            type="password"
+            formControlName="password"
+            placeholder="Enter your password"
+            autocomplete="current-password"
+            [invalid]="invalid('password')"
+            error="Please enter your password."
+          />
+
+          <app-button type="submit" [block]="true" [loading]="loading()">Log in</app-button>
+        </form>
+
+        <div class="divider">OR</div>
+        <p class="signup">New here? <a class="link" routerLink="/register">Create account</a></p>
+        <p class="legal">By continuing you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a>.</p>
+      </div>
+    </app-auth-shell>
   `,
-  styleUrls: ['../auth.css']
 })
 export class LoginComponent {
-  email    = '';
-  password = '';
-  showPwd  = false;
-  loading  = signal(false);
-  error    = signal('');
+  private fb = inject(FormBuilder);
+  private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private auth: AuthService) {}
+  protected loading = signal(false);
+  protected errorMsg = signal<string | null>(null);
 
-  submit() {
-    if (!this.email || !this.password) return;
+  protected form = this.fb.nonNullable.group({
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]],
+  });
+
+  protected invalid(name: 'email' | 'password'): boolean {
+    const c = this.form.get(name);
+    return !!c && c.invalid && c.touched;
+  }
+
+  protected emailError(): string {
+    const c = this.form.get('email');
+    if (c?.hasError('required')) return 'Email is required.';
+    if (c?.hasError('email')) return 'Enter a valid email address.';
+    return '';
+  }
+
+  protected submit(): void {
+    this.errorMsg.set(null);
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
     this.loading.set(true);
-    this.error.set('');
-    this.auth.login(this.email, this.password).subscribe({
-      next: res => {
-        this.loading.set(false);
-        if (res.success) this.auth.navigateAfterLogin();
-        else this.error.set(res.message);
-      },
-      error: err => {
-        this.loading.set(false);
-        this.error.set(err?.error?.message || 'Invalid email or password. Please try again.');
-      }
-    });
+    const { email, password } = this.form.getRawValue();
+    this.auth
+      .login(email, password)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.auth.navigateAfterLogin();
+        },
+        error: (err) => {
+          this.loading.set(false);
+          this.errorMsg.set(err?.error?.message ?? 'The email or password you entered is incorrect.');
+        },
+      });
   }
 }

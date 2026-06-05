@@ -1,248 +1,355 @@
-import { Component, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
 import { ApiService } from '@core/services/api.service';
+import { ToastService } from '@core/services/toast.service';
 
-interface VerifStatus { testPassed: boolean; marksheetUploaded: boolean; isVerified: boolean; }
-interface Question { id: number; questionText: string; subject?: string; options: { optionKey: string; optionText: string }[]; }
+interface VerifQuestion {
+  id: number;
+  questionText: string;
+  subject?: string;
+  options: { optionKey: string; optionText: string }[];
+}
+type Stage = 'loading' | 'intro' | 'test' | 'result' | 'marksheet' | 'pending' | 'approved';
 
 @Component({
   selector: 'app-verification',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container" style="max-width:780px;padding-top:1.75rem;padding-bottom:4rem">
+    @if (stage() === 'loading') {
+      <div class="skel" style="height:300px;border-radius:12px;max-width:560px;margin:0 auto"></div>
+    } @else {
+      <!-- stepper -->
+      <div class="stepper-top">
+        <div class="step-node" [class.done]="step1Done()" [class.active]="!step1Done()">
+          <span class="sn-dot">{{ step1Done() ? '✓' : '1' }}</span
+          ><span class="sn-label">Academic test</span>
+        </div>
+        <div class="step-line" [class.done]="step1Done()"></div>
+        <div class="step-node" [class.active]="step1Done()">
+          <span class="sn-dot">2</span><span class="sn-label">Marksheet</span>
+        </div>
+      </div>
 
-  <h2 style="font-size:1.5rem;margin-bottom:.4rem">Seller Verification</h2>
-  <p style="color:var(--mu);font-size:.85rem;margin-bottom:2rem">Complete these steps to start selling your handwritten notes.</p>
-
-  <!-- Step tracker -->
-  <div class="steps">
-    <div class="step">
-      <div class="sn" [class.done]="status()?.testPassed" [class.active]="!status()?.testPassed">{{ status()?.testPassed ? '✓' : '1' }}</div>
-      <span [class.done-lbl]="status()?.testPassed">Academic Test</span>
-    </div>
-    <div class="sline" [class.done]="status()?.testPassed"></div>
-    <div class="step">
-      <div class="sn" [class.done]="status()?.marksheetUploaded" [class.active]="status()?.testPassed && !status()?.marksheetUploaded">{{ status()?.marksheetUploaded ? '✓' : '2' }}</div>
-      <span [class.done-lbl]="status()?.marksheetUploaded">Upload Marksheet</span>
-    </div>
-    <div class="sline" [class.done]="status()?.marksheetUploaded"></div>
-    <div class="step">
-      <div class="sn" [class.done]="status()?.isVerified" [class.active]="status()?.marksheetUploaded && !status()?.isVerified">{{ status()?.isVerified ? '✓' : '3' }}</div>
-      <span [class.done-lbl]="status()?.isVerified">Admin Approval</span>
-    </div>
-  </div>
-
-  <!-- ── STEP 1: Test ── -->
-  @if (!status()?.testPassed) {
-    <div class="vcard">
-      <h3 style="font-size:1.1rem;margin-bottom:.4rem">Step 1: Academic Verification Test</h3>
-
-      @if (!testStarted()) {
-        <p style="color:var(--mu);font-size:.85rem;margin-bottom:1.25rem">
-          Answer MCQ questions to verify your academic knowledge. You need {{ testConfig()?.passScorePercent || 70 }}% to pass.
-          @if (testConfig()?.timeLimitMinutes) { Time limit: {{ testConfig()!.timeLimitMinutes }} min. }
-          @if (testConfig()?.maxAttempts)      { Max attempts: {{ testConfig()!.maxAttempts }}. }
-        </p>
-        @if (loadingTest()) { <div class="sw"><div class="sp"></div></div> }
-        @else {
-          <button class="btn btn-primary btn-lg" (click)="startTest()">Start Test</button>
-        }
-      }
-
-      @if (testStarted() && !testResult()) {
-        <!-- Timer -->
-        @if (timeLeft() > 0) {
-          <div class="timer" [class.urgent]="timeLeft() <= 60">
-            ⏱ {{ formatTime(timeLeft()) }}
+      @switch (stage()) {
+        @case ('intro') {
+          <div class="card card-pad" style="max-width:560px;margin:0 auto;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+              <span
+                style="width:48px;height:48px;border-radius:12px;background:var(--indigo-50);color:var(--indigo-700);display:grid;place-items:center;"
+                ><svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7" />
+                  <path d="M8 8h5M8 12h8M8 16h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg
+              ></span>
+              <div>
+                <h3 style="font-size:var(--t-20);">Step 1 — Academic test</h3>
+                <p class="muted" style="font-size:14px;margin:2px 0 0;">
+                  Prove your subject mastery to sell on TopNotes.
+                </p>
+              </div>
+            </div>
+            <ul class="pc-includes" style="margin:0 0 20px;">
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="var(--success)"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Multiple-choice questions (A–D)
+              </li>
+              <li>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="var(--success)"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Pass mark: 70% or higher
+              </li>
+            </ul>
+            <button
+              class="btn btn-primary btn-lg btn-block"
+              [attr.data-loading]="busy() ? '1' : null"
+              (click)="startTest()"
+            >
+              <span class="btn-spin"></span><span>Start test</span>
+            </button>
           </div>
         }
 
-        <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:1.5rem">
-          @for (q of questions(); track q.id; let i = $index) {
-            <div class="qblock">
-              <div class="qn">{{ i+1 }}</div>
-              <div style="flex:1">
-                <div style="font-weight:700;font-size:.9rem;margin-bottom:.75rem;line-height:1.45">{{ q.questionText }}</div>
-                @if (q.subject) { <div style="font-size:.72rem;color:var(--mu);margin-bottom:.6rem">Subject: {{ q.subject }}</div> }
-                <div class="opts">
-                  @for (o of q.options; track o.optionKey) {
-                    <label class="opt" [class.sel]="answers[q.id] === o.optionKey">
-                      <input type="radio" [name]="'q'+q.id" [value]="o.optionKey" [(ngModel)]="answers[q.id]" style="display:none">
-                      <span class="ok" [class.ok-sel]="answers[q.id] === o.optionKey">{{ o.optionKey }}</span>
-                      {{ o.optionText }}
-                    </label>
+        @case ('test') {
+          <div style="max-width:640px;margin:0 auto;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+              <span class="muted" style="font-size:14px;font-weight:600;"
+                >{{ answeredCount() }} of {{ questions().length }} answered</span
+              >
+            </div>
+            <div class="progress" style="margin-bottom:18px;"><i [style.width.%]="progress()"></i></div>
+            @for (q of questions(); track q.id; let idx = $index) {
+              <div class="card test-q">
+                <div class="tq-num">
+                  QUESTION {{ idx + 1 }}
+                  @if (q.subject) {
+                    · {{ q.subject }}
                   }
                 </div>
+                <div class="tq-text">{{ q.questionText }}</div>
+                @for (o of q.options; track o.optionKey) {
+                  <label class="opt-row"
+                    ><input
+                      type="radio"
+                      [name]="'q' + q.id"
+                      [checked]="answers()[q.id] === o.optionKey"
+                      (change)="answer(q.id, o.optionKey)"
+                    /><span class="opt-key">{{ o.optionKey }}</span
+                    ><span>{{ o.optionText }}</span></label
+                  >
+                }
               </div>
+            }
+            <div style="display:flex;justify-content:flex-end;margin-top:18px;">
+              <button
+                class="btn btn-primary btn-lg"
+                [disabled]="answeredCount() < questions().length"
+                [attr.data-loading]="busy() ? '1' : null"
+                (click)="submitTest()"
+              >
+                <span class="btn-spin"></span><span>Submit answers</span>
+              </button>
             </div>
-          }
-        </div>
-        <button class="btn btn-primary btn-lg" (click)="submitTest()" [disabled]="submitting()">
-          {{ submitting() ? 'Submitting…' : 'Submit Answers' }}
-        </button>
-      }
-
-      @if (testResult()) {
-        <div class="result" [class.pass]="testResult()!.passed" [class.fail]="!testResult()!.passed">
-          <div class="result-score">{{ testResult()!.score }}%</div>
-          <div style="font-weight:700;font-size:1rem;margin-bottom:.3rem">{{ testResult()!.passed ? 'Test Passed! 🎉' : 'Not Passed' }}</div>
-          <div style="font-size:.85rem;opacity:.85">{{ testResult()!.message }}</div>
-          @if (!testResult()!.passed) {
-            <button class="btn btn-outline" style="margin-top:1rem;border-color:currentColor" (click)="reset()">Try Again</button>
-          }
-        </div>
-      }
-    </div>
-  }
-
-  <!-- ── STEP 2: Marksheet ── -->
-  @if (status()?.testPassed && !status()?.marksheetUploaded) {
-    <div class="vcard">
-      <h3 style="font-size:1.1rem;margin-bottom:.4rem">Step 2: Upload Marksheet</h3>
-      <p style="color:var(--mu);font-size:.85rem;margin-bottom:1.25rem">Upload your previous class marksheet. Only your Name and Roll Number will be visible to the admin — all other details will be blurred for privacy.</p>
-      <div class="dropz" (click)="mInput.click()" [class.has]="msFile">
-        @if (msFile) { <div style="font-size:.9rem;font-weight:600;color:var(--tl)">📄 {{ msFile.name }}</div> }
-        @else { <div><div style="font-size:1.75rem;margin-bottom:.4rem">📤</div><strong>Click to upload marksheet</strong><br><span style="font-size:.78rem;color:var(--mu)">JPG, PNG — max 5MB</span></div> }
-      </div>
-      <input #mInput type="file" accept="image/*" style="display:none" (change)="onFile($event)">
-      @if (uploadError()) { <div class="alert alert-error">{{ uploadError() }}</div> }
-      <button class="btn btn-primary btn-lg" (click)="uploadMarksheet()" [disabled]="!msFile || uploading()">
-        {{ uploading() ? 'Uploading…' : 'Upload Marksheet' }}
-      </button>
-    </div>
-  }
-
-  <!-- ── STEP 3: Waiting ── -->
-  @if (status()?.marksheetUploaded && !status()?.isVerified) {
-    <div class="vcard" style="text-align:center;padding:2.5rem">
-      <div style="font-size:3rem;margin-bottom:1rem">⏳</div>
-      <h3 style="font-size:1.1rem;margin-bottom:.5rem">Awaiting Admin Approval</h3>
-      <p style="color:var(--mu);font-size:.85rem">Your marksheet has been submitted. Our team will review it within 1–2 business days. You'll receive an email and in-app notification when approved.</p>
-    </div>
-  }
-
-  <!-- ── DONE ── -->
-  @if (status()?.isVerified) {
-    <div class="vcard" style="text-align:center;padding:2.5rem;background:linear-gradient(135deg,#d4f0e3,#e8faf0);border:1.5px solid #a3d9bd">
-      <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
-      <h3 style="font-size:1.2rem;margin-bottom:.5rem">You're Verified!</h3>
-      <p style="color:var(--mu);font-size:.88rem;margin-bottom:1.25rem">Your seller account is approved. Start uploading and earning from your notes!</p>
-      <a routerLink="/seller/upload" class="btn btn-gold btn-lg">Upload Your First Note →</a>
-    </div>
-  }
-
-</div>
-</div>
-  `,
-  styles: [`
-    .steps { display:flex; align-items:center; margin-bottom:2rem; }
-    .step  { display:flex; flex-direction:column; align-items:center; gap:.3rem; }
-    .sn    { width:36px; height:36px; border-radius:50%; border:2.5px solid var(--cr3); background:#fff; display:flex; align-items:center; justify-content:center; font-size:.82rem; font-weight:700; color:var(--mu); transition:all var(--t); }
-    .sn.done   { background:var(--tl); border-color:var(--tl); color:#fff; }
-    .sn.active { border-color:var(--ink); color:var(--ink); }
-    .step span { font-size:.72rem; font-weight:600; color:var(--mu); white-space:nowrap; }
-    .step span.done-lbl { color:var(--tl); }
-    .sline { flex:1; height:2.5px; background:var(--cr3); margin:0 .6rem; margin-bottom:.8rem; transition:background .4s; }
-    .sline.done { background:var(--tl); }
-
-    .vcard { background:#fff; border-radius:18px; padding:1.5rem; box-shadow:var(--sh); margin-bottom:1.25rem; }
-
-    .timer { display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .85rem; border-radius:100px; background:var(--cr2); font-weight:700; font-size:.88rem; margin-bottom:1.1rem; border:1.5px solid var(--cr3); }
-    .timer.urgent { background:#fde8e7; border-color:#f5c6c3; color:var(--rd); animation:pulse 1s ease infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-
-    .qblock { display:flex; gap:.9rem; padding:1.1rem; border:1.5px solid var(--cr3); border-radius:14px; }
-    .qn { width:28px; height:28px; border-radius:50%; background:var(--cr2); color:var(--ink3); display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:700; flex-shrink:0; margin-top:.05rem; }
-    .opts { display:grid; grid-template-columns:1fr 1fr; gap:.4rem; }
-    .opt  { display:flex; align-items:center; gap:.5rem; padding:.5rem .75rem; border:1.5px solid var(--cr3); border-radius:9px; cursor:pointer; font-size:.84rem; transition:all var(--t); }
-    .opt:hover { border-color:var(--tl); }
-    .opt.sel   { border-color:var(--tl); background:var(--tlp); color:var(--tl); font-weight:600; }
-    .ok  { width:22px; height:22px; border-radius:50%; background:var(--cr2); color:var(--ink3); display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; flex-shrink:0; }
-    .ok.ok-sel { background:var(--tl); color:#fff; }
-
-    .result { border-radius:14px; padding:1.75rem; text-align:center; }
-    .result.pass { background:linear-gradient(135deg,#d4f0e3,#e8faf0); color:#145e36; border:1.5px solid #a3d9bd; }
-    .result.fail { background:linear-gradient(135deg,#fde8e7,#fdf2f1); color:#8b1f16; border:1.5px solid #f5c6c3; }
-    .result-score { font-family:'Cormorant Garamond',serif; font-size:3rem; font-weight:700; margin-bottom:.4rem; }
-
-    .dropz { border:2px dashed var(--cr3); border-radius:14px; padding:2.5rem; text-align:center; cursor:pointer; transition:all var(--t); margin-bottom:1.1rem; }
-    .dropz:hover, .dropz.has { border-color:var(--tl); background:var(--tlp); }
-
-    @media(max-width:600px) { .opts { grid-template-columns:1fr; } }
-  `]
-})
-export class VerificationComponent implements OnInit {
-  status     = signal<VerifStatus | null>(null);
-  questions  = signal<Question[]>([]);
-  testConfig = signal<any>(null);
-  testStarted= signal(false);
-  testResult = signal<any>(null);
-  submitting = signal(false);
-  loadingTest= signal(false);
-  uploading  = signal(false);
-  uploadError= signal('');
-  answers: Record<number, string> = {};
-  msFile: File | null = null;
-  timeLeft = signal(0);
-  private timerInterval: any;
-
-  constructor(private api: ApiService) {}
-
-  ngOnInit() {
-    this.api.getVerificationStatus().subscribe(r => { if (r.success) this.status.set(r.data); });
-    this.api.getTestConfig().subscribe(r => { if (r.success) this.testConfig.set(r.data); });
-  }
-
-  startTest() {
-    this.loadingTest.set(true);
-    this.api.getVerificationTest().subscribe({
-      next: r => {
-        this.loadingTest.set(false);
-        if (r.success) {
-          this.questions.set(r.data);
-          this.testStarted.set(true);
-          // Start countdown if configured
-          const mins = this.testConfig()?.timeLimitMinutes || 0;
-          if (mins > 0) {
-            this.timeLeft.set(mins * 60);
-            this.timerInterval = setInterval(() => {
-              this.timeLeft.update(t => { if (t <= 1) { clearInterval(this.timerInterval); this.submitTest(); return 0; } return t - 1; });
-            }, 1000);
-          }
+          </div>
         }
-      },
-      error: err => { this.loadingTest.set(false); alert(err?.error?.message || 'Could not load test.'); }
-    });
+
+        @case ('result') {
+          <div class="card result-hero" style="max-width:520px;margin:0 auto;">
+            <div class="rh-ic" [class.pass]="passed()" [class.fail]="!passed()">
+              @if (passed()) {
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="m5 13 4 4L19 7"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              } @else {
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+                </svg>
+              }
+            </div>
+            <h2 style="font-size:var(--t-24);">{{ passed() ? 'You passed!' : 'Not quite there' }}</h2>
+            <div class="rh-score" [style.color]="passed() ? 'var(--success)' : 'var(--danger)'">{{ score() }}%</div>
+            <p class="muted" style="max-width:360px;margin:8px auto 22px;">
+              {{
+                passed()
+                  ? 'Great work — you scored above the 70% pass mark. Continue to upload your marksheet.'
+                  : 'You scored below the 70% pass mark. You can retake the test.'
+              }}
+            </p>
+            @if (passed()) {
+              <button class="btn btn-primary btn-lg" (click)="stage.set('marksheet')">Continue to Step 2</button>
+            } @else {
+              <button class="btn btn-secondary btn-lg" (click)="stage.set('intro')">Retake test</button>
+            }
+          </div>
+        }
+
+        @case ('marksheet') {
+          <div class="card card-pad" style="max-width:560px;margin:0 auto;">
+            <h3 style="font-size:var(--t-20);margin-bottom:4px;">Upload your marksheet</h3>
+            <p class="muted" style="font-size:14px;margin:0 0 18px;">
+              Upload a clear photo of your exam result / rank card. Our team verifies it within 24–48 hours.
+            </p>
+            <input #ms type="file" accept="image/*" hidden (change)="onMarksheet($any($event.target).files)" />
+            <div class="dropzone" role="button" tabindex="0" (click)="ms.click()" (keydown.enter)="ms.click()">
+              <div class="dz-ic">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.7" />
+                  <circle cx="9" cy="10" r="2" stroke="currentColor" stroke-width="1.7" />
+                  <path d="m4 19 5-4 4 3 3-2 4 3" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" />
+                </svg>
+              </div>
+              <h4>{{ marksheetFile()?.name || 'Drop your marksheet image' }}</h4>
+              <p>JPG or PNG · max 10MB</p>
+            </div>
+            <button
+              class="btn btn-primary btn-lg btn-block"
+              style="margin-top:18px;"
+              [disabled]="!marksheetFile()"
+              [attr.data-loading]="busy() ? '1' : null"
+              (click)="submitMarksheet()"
+            >
+              <span class="btn-spin"></span><span>Submit for review</span>
+            </button>
+          </div>
+        }
+
+        @case ('pending') {
+          <div class="card result-hero" style="max-width:520px;margin:0 auto;">
+            <div class="rh-ic" style="background:var(--warning-bg);color:var(--warning);">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7" />
+                <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h2 style="font-size:var(--t-24);">Awaiting admin approval</h2>
+            <p class="muted" style="max-width:380px;margin:10px auto 0;">
+              Your test passed and your marksheet is under review. We'll notify you within 24–48 hours.
+            </p>
+          </div>
+        }
+
+        @case ('approved') {
+          <div class="card result-hero" style="max-width:520px;margin:0 auto;">
+            <div class="rh-ic pass">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="m9 12 2 2 4-4.5"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </div>
+            <h2 style="font-size:var(--t-24);">You're a verified seller!</h2>
+            <p class="muted" style="max-width:380px;margin:10px auto 0;">
+              Your account is approved. You can now upload and sell notes on TopNotes.
+            </p>
+            <a class="btn btn-primary btn-lg" style="margin-top:22px;" routerLink="/seller/upload"
+              >Upload your first note</a
+            >
+          </div>
+        }
+      }
+    }
+  `,
+})
+export class VerificationComponent {
+  private api = inject(ApiService);
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
+
+  protected stage = signal<Stage>('loading');
+  protected questions = signal<VerifQuestion[]>([]);
+  protected answers = signal<Record<number, string>>({});
+  protected passed = signal(false);
+  protected score = signal(0);
+  protected busy = signal(false);
+  protected marksheetFile = signal<File | null>(null);
+
+  protected answeredCount = computed(() => Object.keys(this.answers()).length);
+  protected progress = computed(() => {
+    const n = this.questions().length;
+    return n ? (this.answeredCount() / n) * 100 : 0;
+  });
+  protected step1Done = computed(() => ['marksheet', 'pending', 'approved'].includes(this.stage()));
+
+  constructor() {
+    this.loadStatus();
   }
 
-  submitTest() {
-    clearInterval(this.timerInterval);
-    this.submitting.set(true);
-    this.api.submitVerificationTest(this.answers).subscribe({
-      next: r => { this.submitting.set(false); if (r.success) { this.testResult.set(r.data); if (r.data.passed) this.status.update(s => s ? {...s, testPassed:true} : s); } },
-      error: () => this.submitting.set(false)
-    });
+  private loadStatus() {
+    this.api
+      .getVerificationStatus()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          const s = r.data ?? {};
+          if (s['isVerified']) this.stage.set('approved');
+          else if (s['testPassed'] && s['marksheetUploaded']) this.stage.set('pending');
+          else if (s['testPassed']) this.stage.set('marksheet');
+          else this.stage.set('intro');
+        },
+        error: () => this.stage.set('intro'),
+      });
   }
 
-  reset() { this.testStarted.set(false); this.testResult.set(null); this.answers = {}; this.timeLeft.set(0); }
-
-  onFile(e: Event) { this.msFile = (e.target as HTMLInputElement).files?.[0] || null; }
-
-  uploadMarksheet() {
-    if (!this.msFile) return;
-    this.uploading.set(true); this.uploadError.set('');
-    const fd = new FormData(); fd.append('marksheet', this.msFile);
-    this.api.uploadMarksheet(fd).subscribe({
-      next: r => { this.uploading.set(false); if (r.success) this.status.update(s => s ? {...s, marksheetUploaded:true} : s); else this.uploadError.set(r.message); },
-      error: err => { this.uploading.set(false); this.uploadError.set(err?.error?.message || 'Upload failed.'); }
-    });
+  protected startTest() {
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.api
+      .getVerificationTest()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          this.questions.set((r.data ?? []) as unknown as VerifQuestion[]);
+          this.answers.set({});
+          this.busy.set(false);
+          this.stage.set('test');
+        },
+        error: () => this.busy.set(false),
+      });
   }
 
-  formatTime(s: number) { const m = Math.floor(s/60); const sec = s%60; return `${m}:${sec.toString().padStart(2,'0')}`; }
+  protected answer(qId: number, key: string) {
+    this.answers.update((a) => ({ ...a, [qId]: key }));
+  }
+
+  protected submitTest() {
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.api
+      .submitVerificationTest(this.answers())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (r) => {
+          const res = r.data ?? {};
+          this.passed.set(!!res['passed']);
+          this.score.set(Math.round(Number(res['score'] ?? 0)));
+          this.busy.set(false);
+          this.stage.set('result');
+        },
+        error: () => this.busy.set(false),
+      });
+  }
+
+  protected onMarksheet(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) {
+      this.toast.error('Please choose an image (JPG/PNG).');
+      return;
+    }
+    if (f.size > 10 * 1048576) {
+      this.toast.error('Image must be under 10MB.');
+      return;
+    }
+    this.marksheetFile.set(f);
+  }
+
+  protected submitMarksheet() {
+    if (this.busy() || !this.marksheetFile()) return;
+    this.busy.set(true);
+    const fd = new FormData();
+    fd.append('marksheet', this.marksheetFile()!);
+    this.api
+      .uploadMarksheet(fd)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.busy.set(false);
+          this.toast.success('Marksheet submitted for review');
+          this.stage.set('pending');
+        },
+        error: () => this.busy.set(false),
+      });
+  }
 }

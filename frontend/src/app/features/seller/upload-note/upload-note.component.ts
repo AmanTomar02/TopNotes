@@ -1,191 +1,242 @@
-import { Component, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { NavbarComponent } from '@shared/components/navbar/navbar.component';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ApiService } from '@core/services/api.service';
+import { AuthService } from '@core/services/auth.service';
+import { ToastService } from '@core/services/toast.service';
+import { Note } from '@core/models';
+import { NoteCardComponent } from '@ui/note-card/note-card.component';
 
 @Component({
   selector: 'app-upload-note',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, NavbarComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ReactiveFormsModule, NoteCardComponent],
   template: `
-<app-navbar></app-navbar>
-<div class="page-shell">
-<div class="container" style="max-width:860px;padding-top:1.75rem;padding-bottom:4rem">
-
-  <h2 style="font-size:1.5rem;margin-bottom:.35rem">Upload New Notes</h2>
-  <p style="color:var(--mu);font-size:.85rem;margin-bottom:1.75rem">Share your knowledge and earn from every purchase.</p>
-
-  @if (error())   { <div class="alert alert-error">{{ error() }}</div> }
-  @if (success()) { <div class="alert alert-success">{{ success() }}</div> }
-
-  <div style="background:#fff;border-radius:22px;padding:2rem;box-shadow:var(--sh)">
-    <div class="form-grid">
-
-      <div class="fg span2">
-        <label class="fl">Title *</label>
-        <input class="fc" [(ngModel)]="title" placeholder="e.g. Complete JEE Physics — Electrostatics Chapter" maxlength="250">
+    <div class="page-head">
+      <div>
+        <div class="crumb">Seller</div>
+        <h1>Upload a note</h1>
+        <p>Add a new set of notes to the marketplace.</p>
       </div>
-
-      <div class="fg span2">
-        <label class="fl">Description * <span style="font-weight:400;color:var(--mu)">(explain what topics are covered)</span></label>
-        <textarea class="fc" [(ngModel)]="description" rows="4"
-          placeholder="Describe topics covered, chapters, reference books, difficulty level…" maxlength="5000"></textarea>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Class / Level</label>
-        <select class="fc" [(ngModel)]="classLevel">
-          <option value="">Select class</option>
-          <option>Class 9</option><option>Class 10</option>
-          <option>Class 11</option><option>Class 12</option>
-          <option>Dropper</option><option>Repeater</option>
-        </select>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Subject</label>
-        <input class="fc" [(ngModel)]="subject" placeholder="e.g. Physics, Mathematics, Biology">
-      </div>
-
-      <div class="fg">
-        <label class="fl">Exam Type</label>
-        <select class="fc" [(ngModel)]="examType">
-          <option value="">Select exam</option>
-          <option value="BOARD">Board</option>
-          <option value="JEE_MAIN">JEE Main</option>
-          <option value="JEE_ADVANCED">JEE Advanced</option>
-          <option value="NEET">NEET</option>
-          <option value="UPSC">UPSC</option>
-          <option value="GATE">GATE</option>
-          <option value="CAT">CAT</option>
-          <option value="OTHER">Other</option>
-        </select>
-      </div>
-
-      <div class="fg">
-        <label class="fl">Price (₹) *</label>
-        <input class="fc" type="number" [(ngModel)]="price" min="1" max="99999" placeholder="e.g. 199">
-      </div>
-
-      <!-- PDF upload -->
-      <div class="fg span2">
-        <label class="fl">Notes PDF * <span style="font-weight:400;color:var(--mu)">(max 50MB)</span></label>
-        <div class="dropz" (click)="pdfInput.click()" [class.has]="pdfFile"
-             (dragover)="$event.preventDefault()" (drop)="onDrop($event, 'pdf')">
-          @if (pdfFile) {
-            <div style="color:var(--tl);font-weight:600;font-size:.9rem">📄 {{ pdfFile.name }} <span style="font-weight:400;color:var(--mu)">({{ (pdfFile.size/1048576).toFixed(1) }}MB)</span></div>
-          } @else {
-            <div class="dz-inner"><span>📄</span><strong>Click or drag to upload PDF</strong><span class="dz-hint">PDF only · Max 50MB</span></div>
-          }
-        </div>
-        <input #pdfInput type="file" accept="application/pdf" style="display:none" (change)="onPdf($event)">
-      </div>
-
-      <!-- Thumbnail upload -->
-      <div class="fg span2">
-        <label class="fl">Thumbnail Image <span style="font-weight:400;color:var(--mu)">(optional — shown in listing card)</span></label>
-        <div class="dropz thumb-dz" (click)="thumbInput.click()" [class.has]="thumbFile"
-             (dragover)="$event.preventDefault()" (drop)="onDrop($event, 'thumb')">
-          @if (thumbPreview) {
-            <img [src]="thumbPreview" style="max-height:130px;border-radius:10px;object-fit:cover">
-          } @else {
-            <div class="dz-inner"><span>🖼️</span><strong>Click or drag to upload thumbnail</strong><span class="dz-hint">JPG, PNG · Max 5MB</span></div>
-          }
-        </div>
-        <input #thumbInput type="file" accept="image/*" style="display:none" (change)="onThumb($event)">
-      </div>
-
     </div>
 
-    <div style="border-top:1px solid var(--cr3);padding-top:1.5rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap">
-      <button class="btn btn-primary btn-xl" (click)="upload()" [disabled]="loading()">
-        @if (loading()) { <span class="sp-btn"></span> }
-        {{ loading() ? 'Publishing…' : 'Publish Notes' }}
-      </button>
-      <a routerLink="/seller/notes" class="btn btn-outline">Cancel</a>
-      <span style="font-size:.78rem;color:var(--mu)">Your notes go live immediately after publishing.</span>
-    </div>
-  </div>
-</div>
-</div>
+    <form class="upload-grid" [formGroup]="form" (ngSubmit)="publish()">
+      <div>
+        <div class="card form-section">
+          <h3><span class="sec-num">1</span> Details</h3>
+          <p class="sec-desc">Tell buyers what's inside.</p>
+          <div class="field" [class.invalid]="invalid('title')">
+            <label class="label" for="up-title">Title</label>
+            <input
+              id="up-title"
+              class="input"
+              formControlName="title"
+              placeholder="e.g. Organic Chemistry — Reaction Mechanisms"
+            />
+            <div class="field-err">Title must be at least 5 characters.</div>
+          </div>
+          <div class="field" [class.invalid]="invalid('description')">
+            <label class="label" for="up-desc">Description</label>
+            <textarea
+              id="up-desc"
+              class="textarea"
+              formControlName="description"
+              placeholder="What topics are covered? What makes these notes useful? (min 20 characters)"
+            ></textarea>
+            <div class="field-err">Description must be at least 20 characters.</div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label class="label" for="up-class">Class</label
+              ><select id="up-class" class="select" formControlName="classLevel">
+                <option>Class 11</option>
+                <option>Class 12</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label" for="up-subject">Subject</label
+              ><select id="up-subject" class="select" formControlName="subject">
+                <option>Physics</option>
+                <option>Chemistry</option>
+                <option>Mathematics</option>
+                <option>Biology</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label class="label" for="up-exam">Exam type</label
+              ><select id="up-exam" class="select" formControlName="examType">
+                <option value="JEE_MAIN">JEE Main</option>
+                <option value="JEE_ADVANCED">JEE Advanced</option>
+                <option value="NEET">NEET</option>
+                <option value="BOARD">Board</option>
+              </select>
+            </div>
+            <div class="field" [class.invalid]="invalid('price')">
+              <label class="label" for="up-price">Price (₹)</label
+              ><input id="up-price" class="input" type="number" formControlName="price" placeholder="199" />
+              <div class="field-err">Set a price (₹1 or more).</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card form-section">
+          <h3><span class="sec-num">2</span> Files</h3>
+          <p class="sec-desc">Upload the notes PDF and an optional cover.</p>
+          <input #pdfInput type="file" accept="application/pdf" hidden (change)="onPdf($any($event.target).files)" />
+          <div
+            class="dropzone"
+            role="button"
+            tabindex="0"
+            [class.drag]="dragging()"
+            (click)="pdfInput.click()"
+            (keydown.enter)="pdfInput.click()"
+            (dragover)="$event.preventDefault(); dragging.set(true)"
+            (dragleave)="dragging.set(false)"
+            (drop)="$event.preventDefault(); dragging.set(false); onPdf($any($event).dataTransfer.files)"
+          >
+            <div class="dz-ic">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M12 15V4m0 0L8 8m4-4 4 4"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
+            <h4>Drag &amp; drop your PDF here</h4>
+            <p>or click to browse · PDF only · max 50MB</p>
+          </div>
+          @if (pdfFile(); as f) {
+            <div class="upload-file">
+              <span class="uf-ic">PDF</span>
+              <div class="uf-body">
+                <div class="uf-name">{{ f.name }}</div>
+                <div class="uf-pct">{{ (f.size / 1048576).toFixed(1) }} MB</div>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="pdfFile.set(null)">Remove</button>
+            </div>
+          }
+        </div>
+
+        <div class="card form-section">
+          <h3><span class="sec-num">3</span> Review &amp; publish</h3>
+          <p class="sec-desc">Check the preview, then publish to the marketplace.</p>
+          <button type="submit" class="btn btn-primary btn-lg" [attr.data-loading]="publishing() ? '1' : null">
+            <span class="btn-spin"></span><span>Publish note</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="preview-pane">
+        <div class="pp-label">Live preview · how it appears in Browse</div>
+        <app-note-card [note]="previewNote()" />
+      </div>
+    </form>
   `,
-  styles: [`
-    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 1.5rem; }
-    .span2 { grid-column:span 2; }
-    .dropz { border:2px dashed var(--cr3); border-radius:14px; padding:2rem; text-align:center; cursor:pointer; transition:all var(--t); margin-bottom:.2rem; }
-    .dropz:hover,.dropz.has { border-color:var(--tl); background:var(--tlp); }
-    .thumb-dz { padding:1.25rem; }
-    .dz-inner { display:flex; flex-direction:column; gap:.3rem; align-items:center; color:var(--mu); }
-    .dz-inner span:first-child { font-size:1.6rem; }
-    .dz-inner strong { color:var(--ink); font-size:.9rem; }
-    .dz-hint { font-size:.76rem; }
-    .sp-btn { width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite; }
-    @keyframes spin{to{transform:rotate(360deg)}}
-    @media(max-width:640px){ .form-grid{grid-template-columns:1fr} .span2{grid-column:span 1} }
-  `]
 })
 export class UploadNoteComponent {
-  title       = '';
-  description = '';
-  classLevel  = '';
-  subject     = '';
-  examType    = '';
-  price: number | null = null;
-  pdfFile:    File | null = null;
-  thumbFile:  File | null = null;
-  thumbPreview: string | null = null;
-  loading = signal(false);
-  error   = signal('');
-  success = signal('');
+  private fb = inject(FormBuilder);
+  private api = inject(ApiService);
+  private auth = inject(AuthService);
+  private toast = inject(ToastService);
+  private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
 
-  constructor(private api: ApiService, private router: Router) {}
+  protected pdfFile = signal<File | null>(null);
+  protected dragging = signal(false);
+  protected publishing = signal(false);
 
-  onPdf(e: Event) {
-    this.pdfFile = (e.target as HTMLInputElement).files?.[0] || null;
+  protected form = this.fb.nonNullable.group({
+    title: ['', [Validators.required, Validators.minLength(5)]],
+    description: ['', [Validators.required, Validators.minLength(20)]],
+    classLevel: ['Class 12'],
+    subject: ['Physics'],
+    examType: ['JEE_MAIN'],
+    price: [199, [Validators.required, Validators.min(1)]],
+  });
+
+  private formValue = signal(this.form.getRawValue());
+
+  constructor() {
+    this.form.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.formValue.set(this.form.getRawValue()));
   }
 
-  onThumb(e: Event) {
-    const f = (e.target as HTMLInputElement).files?.[0];
-    if (f) { this.thumbFile = f; const reader = new FileReader(); reader.onload = ev => this.thumbPreview = ev.target?.result as string; reader.readAsDataURL(f); }
+  protected previewNote = computed<Note>(() => {
+    const v = this.formValue();
+    return {
+      id: 0,
+      title: v.title || 'Your note title',
+      description: v.description,
+      classLevel: v.classLevel,
+      subject: v.subject,
+      examType: v.examType,
+      price: Number(v.price) || 0,
+      totalPages: 0,
+      averageRating: 0,
+      reviewCount: 0,
+      seller: { id: 0, fullName: this.auth.user()?.fullName ?? 'You' },
+    };
+  });
+
+  protected invalid(name: string): boolean {
+    const c = this.form.get(name);
+    return !!c && c.invalid && c.touched;
   }
 
-  onDrop(e: DragEvent, type: 'pdf' | 'thumb') {
-    e.preventDefault();
-    const f = e.dataTransfer?.files[0];
+  protected onPdf(files: FileList | null) {
+    const f = files?.[0];
     if (!f) return;
-    if (type === 'pdf') { this.pdfFile = f; }
-    else { this.thumbFile = f; const reader = new FileReader(); reader.onload = ev => this.thumbPreview = ev.target?.result as string; reader.readAsDataURL(f); }
+    if (f.type !== 'application/pdf') {
+      this.toast.error('Please choose a PDF file.');
+      return;
+    }
+    if (f.size > 50 * 1048576) {
+      this.toast.error('PDF must be under 50MB.');
+      return;
+    }
+    this.pdfFile.set(f);
   }
 
-  upload() {
-    if (!this.title.trim())       { this.error.set('Title is required.'); return; }
-    if (!this.description.trim()) { this.error.set('Description is required.'); return; }
-    if (!this.price || this.price < 1) { this.error.set('Please enter a valid price (min ₹1).'); return; }
-    if (!this.pdfFile)            { this.error.set('Please upload the PDF notes file.'); return; }
+  protected publish() {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (!this.pdfFile()) {
+      this.toast.error('Please attach the notes PDF.');
+      return;
+    }
+    if (this.publishing()) return;
 
-    this.loading.set(true); this.error.set(''); this.success.set('');
-
+    this.publishing.set(true);
     const fd = new FormData();
-    fd.append('data', new Blob([JSON.stringify({
-      title:       this.title,
-      description: this.description,
-      classLevel:  this.classLevel  || undefined,
-      subject:     this.subject     || undefined,
-      examType:    this.examType    || undefined,
-      price:       this.price
-    })], { type: 'application/json' }));
-    fd.append('pdf', this.pdfFile);
-    if (this.thumbFile) fd.append('thumbnail', this.thumbFile);
+    fd.append('data', new Blob([JSON.stringify(this.form.getRawValue())], { type: 'application/json' }));
+    fd.append('pdf', this.pdfFile()!);
 
-    this.api.uploadNote(fd).subscribe({
-      next: r => {
-        this.loading.set(false);
-        if (r.success) { this.success.set('Notes published successfully!'); setTimeout(() => this.router.navigate(['/seller/notes']), 1000); }
-        else this.error.set(r.message);
-      },
-      error: err => { this.loading.set(false); this.error.set(err?.error?.message || 'Upload failed. Please try again.'); }
-    });
+    this.api
+      .uploadNote(fd)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.publishing.set(false);
+          this.toast.success('Note published to the marketplace 🎉');
+          this.router.navigate(['/seller/notes']);
+        },
+        error: () => this.publishing.set(false),
+      });
   }
 }
