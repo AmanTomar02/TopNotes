@@ -20,7 +20,11 @@ GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
 
 /**
  * Full-screen secure reader. Renders PDF pages on canvas (no browser download toolbar),
- * bakes a per-user watermark into each page, and blocks common save/print shortcuts.
+ * bakes a per-user watermark into each page, and applies anti-capture deterrents.
+ *
+ * Note: OS-level screenshots cannot be fully blocked in a browser. We hide content on
+ * capture shortcuts, blur on focus loss / devtools, and stamp every page with a live
+ * user-specific watermark so leaked captures remain traceable.
  */
 @Component({
   selector: 'app-note-view',
@@ -45,14 +49,18 @@ GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
             <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.7" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" stroke-width="1.7" />
           </svg>
-          Protected content
+          Protected · view only
         </span>
         @if (totalPages()) {
           <span class="vt-page">Page {{ currentPage() }} / {{ totalPages() }}</span>
         }
       </div>
 
-      <div class="viewer-stage secure-stage" [class.viewer-blurred]="blurred()">
+      <div
+        class="viewer-stage secure-stage"
+        [class.viewer-blurred]="blurred()"
+        [class.viewer-shielded]="shielded()"
+      >
         @if (loading()) {
           <div class="viewer-message">Loading secure document…</div>
         } @else if (error()) {
@@ -63,11 +71,12 @@ GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
         } @else {
           <div class="doc-page secure-doc-page">
             <canvas #pageCanvas class="secure-canvas"></canvas>
-            <div class="watermark watermark--overlay" aria-hidden="true">
+            <div class="watermark watermark--overlay anti-capture-grid" aria-hidden="true">
               @for (m of marks; track $index) {
-                <span>{{ watermarkText() }}</span>
+                <span>{{ watermarkLine() }}</span>
               }
             </div>
+            <div class="watermark-stamp" aria-hidden="true">{{ watermarkLine() }}</div>
           </div>
         }
       </div>
@@ -87,6 +96,16 @@ GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
           </button>
         </div>
       }
+
+      @if (shielded()) {
+        <div class="capture-shield" role="alert">
+          <div class="capture-shield-box">
+            <p>Content hidden</p>
+            <small>Screenshots and recording are not permitted on TopNotes.</small>
+            <button type="button" class="btn btn-primary" (click)="resumeReading()">Continue reading</button>
+          </div>
+        </div>
+      }
     </div>
   `,
 })
@@ -104,16 +123,30 @@ export class NoteViewComponent {
   protected currentPage = signal(1);
   protected totalPages = signal(0);
   protected blurred = signal(false);
-  protected marks = Array.from({ length: 40 });
+  protected shielded = signal(false);
+  protected liveStamp = signal(this.formatStamp());
+  protected marks = Array.from({ length: 48 });
 
   private id = Number(this.route.snapshot.paramMap.get('id'));
   private pdfDoc: PDFDocumentProxy | null = null;
   private rendering = false;
+  private devToolsTimer: ReturnType<typeof setInterval> | null = null;
+  private stampTimer: ReturnType<typeof setInterval> | null = null;
+  private shieldTimer: ReturnType<typeof setTimeout> | null = null;
 
-  protected watermarkText = computed(() => `${this.auth.user()?.email ?? 'TopNotes'} · TopNotes`);
+  protected watermarkLine = computed(() => {
+    const email = this.auth.user()?.email ?? 'TopNotes';
+    return `${email} · Note #${this.id} · ${this.liveStamp()} · TopNotes`;
+  });
 
   constructor() {
     document.body.classList.add('viewer-mode');
+
+    this.stampTimer = setInterval(() => {
+      this.liveStamp.set(this.formatStamp());
+    }, 1000);
+
+    this.devToolsTimer = setInterval(() => this.checkDevTools(), 1500);
 
     this.api
       .getNote(this.id)
@@ -139,46 +172,74 @@ export class NoteViewComponent {
 
     this.destroyRef.onDestroy(() => {
       document.body.classList.remove('viewer-mode');
+      if (this.devToolsTimer) clearInterval(this.devToolsTimer);
+      if (this.stampTimer) clearInterval(this.stampTimer);
+      if (this.shieldTimer) clearTimeout(this.shieldTimer);
       void this.pdfDoc?.destroy();
       this.pdfDoc = null;
     });
   }
 
+  protected resumeReading(): void {
+    this.shielded.set(false);
+    this.blurred.set(false);
+    void this.renderCurrentPage();
+  }
+
+  @HostListener('document:keydown', ['$event'])
   protected onKeyDown(event: KeyboardEvent): void {
     const key = event.key.toLowerCase();
     const mod = event.ctrlKey || event.metaKey;
 
-    if (
+    const captureShortcut =
+      key === 'printscreen' ||
+      (mod && event.shiftKey && ['3', '4', '5', '6', 's'].includes(key)) ||
+      (event.metaKey && event.shiftKey && key === 's');
+
+    const blockedShortcut =
+      captureShortcut ||
       (mod && ['s', 'p', 'u', 'c', 'a'].includes(key)) ||
       (mod && event.shiftKey && key === 'i') ||
-      key === 'f12' ||
-      key === 'printscreen'
-    ) {
+      key === 'f12';
+
+    if (blockedShortcut) {
       event.preventDefault();
       event.stopPropagation();
-      this.blurred.set(true);
-      window.setTimeout(() => this.blurred.set(document.hidden), 400);
+      this.activateShield();
     }
   }
 
   @HostListener('document:visibilitychange')
   protected onVisibilityChange(): void {
-    this.blurred.set(document.hidden);
+    if (document.hidden) {
+      this.activateShield();
+    }
   }
 
   @HostListener('window:blur')
   protected onWindowBlur(): void {
     this.blurred.set(true);
+    this.clearCanvas();
   }
 
   @HostListener('window:focus')
   protected onWindowFocus(): void {
-    if (!document.hidden) this.blurred.set(false);
+    if (!document.hidden && !this.shielded()) {
+      this.blurred.set(false);
+      void this.renderCurrentPage();
+    }
   }
 
-  @HostListener('document:keydown', ['$event'])
-  protected handleDocumentKeyDown(event: KeyboardEvent): void {
-    this.onKeyDown(event);
+  @HostListener('document:copy', ['$event'])
+  @HostListener('document:cut', ['$event'])
+  protected blockCopy(event: ClipboardEvent): void {
+    event.preventDefault();
+    this.activateShield();
+  }
+
+  @HostListener('window:beforeprint')
+  protected onBeforePrint(): void {
+    this.activateShield();
   }
 
   protected prevPage(): void {
@@ -193,6 +254,44 @@ export class NoteViewComponent {
       this.currentPage.update((p) => p + 1);
       void this.renderCurrentPage();
     }
+  }
+
+  private formatStamp(): string {
+    return new Date().toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  }
+
+  private checkDevTools(): void {
+    const gap = window.outerWidth - window.innerWidth;
+    const gapY = window.outerHeight - window.innerHeight;
+    if (gap > 160 || gapY > 160) {
+      this.activateShield();
+    }
+  }
+
+  private activateShield(): void {
+    this.shielded.set(true);
+    this.blurred.set(true);
+    this.clearCanvas();
+
+    if (this.shieldTimer) clearTimeout(this.shieldTimer);
+    this.shieldTimer = setTimeout(() => {
+      if (document.hidden) return;
+    }, 4000);
+  }
+
+  private clearCanvas(): void {
+    const canvas = this.canvasRef()?.nativeElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   private async loadPdf(blob: Blob): Promise<void> {
@@ -210,7 +309,7 @@ export class NoteViewComponent {
   }
 
   private async renderCurrentPage(): Promise<void> {
-    if (!this.pdfDoc || this.rendering) return;
+    if (!this.pdfDoc || this.rendering || this.shielded()) return;
 
     const canvas = this.canvasRef()?.nativeElement;
     if (!canvas) {
@@ -240,16 +339,16 @@ export class NoteViewComponent {
   }
 
   private drawWatermark(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    const text = this.watermarkText();
+    const text = this.watermarkLine();
     ctx.save();
-    ctx.globalAlpha = 0.18;
-    ctx.font = '600 14px system-ui, sans-serif';
-    ctx.fillStyle = '#475467';
+    ctx.globalAlpha = 0.28;
+    ctx.font = '700 13px system-ui, sans-serif';
+    ctx.fillStyle = '#344054';
     ctx.translate(width / 2, height / 2);
     ctx.rotate(-30 * (Math.PI / 180));
 
-    for (let y = -height * 1.2; y < height * 1.2; y += 72) {
-      for (let x = -width * 1.2; x < width * 1.2; x += 220) {
+    for (let y = -height * 1.2; y < height * 1.2; y += 64) {
+      for (let x = -width * 1.2; x < width * 1.2; x += 260) {
         ctx.fillText(text, x, y);
       }
     }

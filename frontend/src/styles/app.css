@@ -207,12 +207,36 @@ body.viewer-mode { background: #14161f; overflow: hidden; }
 .viewer-top .vt-close:hover { background: rgba(255,255,255,.1); color: #fff; }
 .viewer-stage { flex: 1; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; position: relative; }
 .viewer-stage.secure-stage { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.viewer-stage.viewer-blurred .secure-doc-page { filter: blur(22px); pointer-events: none; }
+.viewer-stage.viewer-blurred .secure-doc-page,
+.viewer-stage.viewer-shielded .secure-doc-page { filter: blur(28px); pointer-events: none; }
 .viewer-message { color: rgba(255,255,255,.65); margin-top: 80px; text-align: center; }
 .viewer-message--error p { margin-bottom: 12px; }
 .secure-doc-page { position: relative; width: min(720px, 100%); background: #fff; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,.5); overflow: hidden; line-height: 0; }
 .secure-canvas { display: block; width: 100%; height: auto; pointer-events: none; -webkit-user-drag: none; user-drag: none; }
-.watermark--overlay { z-index: 2; opacity: .12; }
+.watermark--overlay { z-index: 2; opacity: .22; }
+.anti-capture-grid { animation: watermark-drift 8s linear infinite; }
+.watermark-stamp {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  display: grid; place-items: center; font-size: clamp(18px, 3vw, 28px); font-weight: 700;
+  color: rgba(52,64,84,.18); text-align: center; padding: 24px; line-height: 1.3;
+  transform: rotate(-24deg); white-space: pre-wrap; word-break: break-word;
+}
+.capture-shield {
+  position: fixed; inset: 0; z-index: 9999; background: #14161f;
+  display: grid; place-items: center; padding: 24px;
+}
+.capture-shield-box {
+  max-width: 360px; text-align: center; color: #fff;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px; padding: 28px 24px;
+}
+.capture-shield-box p { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
+.capture-shield-box small { display: block; color: rgba(255,255,255,.65); margin-bottom: 18px; line-height: 1.5; }
+@keyframes watermark-drift {
+  0% { transform: rotate(-30deg) scale(1.4) translate(0, 0); }
+  50% { transform: rotate(-30deg) scale(1.4) translate(8px, -6px); }
+  100% { transform: rotate(-30deg) scale(1.4) translate(0, 0); }
+}
 .doc-page { position: relative; width: min(720px, 100%); aspect-ratio: 1 / 1.41; background: #fff; border-radius: 6px; box-shadow: 0 20px 60px rgba(0,0,0,.5); overflow: hidden; }
 .doc-page .page-lines { position: absolute; inset: 56px 48px; background-image: repeating-linear-gradient(0deg, #EAECF0 0 1px, transparent 1px 34px); }
 .doc-page .page-head-line { position: absolute; top: 40px; left: 48px; width: 55%; height: 18px; border-radius: 4px; background: #D6DAE1; }
