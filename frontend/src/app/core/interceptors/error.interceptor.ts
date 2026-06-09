@@ -15,11 +15,13 @@ import { AuthService } from '@core/services/auth.service';
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
   const auth = inject(AuthService);
-  const isAuthCall = req.url.includes('/auth/');
+  // /auth/* shows its own inline errors; the background token refresh must fail
+  // silently (a transient 401 there must NOT toast or force-logout the user).
+  const isSilentCall = req.url.includes('/auth/') || req.url.includes('/profile/refresh-token');
 
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (!isAuthCall) {
+      if (!isSilentCall) {
         if (err.status === 401) {
           toast.error('Your session expired — please log in again.');
           auth.logout();

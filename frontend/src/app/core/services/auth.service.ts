@@ -18,6 +18,13 @@ export class AuthService {
   readonly isAdmin = computed(() => this._user()?.role === 'ADMIN');
   readonly isSeller = computed(() => this._user()?.role === 'SELLER');
   readonly isBuyer = computed(() => this._user()?.role === 'BUYER');
+  readonly isVerified = computed(() => !!this._user()?.isVerified);
+
+  // ── Capabilities (a user can both buy and sell) ───────────────
+  /** Any logged-in non-admin can browse and buy notes. */
+  readonly canBuy = computed(() => this.isLoggedIn() && !this.isAdmin());
+  /** Sellers can sell (publishing still requires verification). */
+  readonly canSell = computed(() => this.isSeller());
 
   constructor(
     private http: HttpClient,
@@ -46,6 +53,34 @@ export class AuthService {
     );
   }
 
+  /**
+   * Upgrade the current buyer into a seller. The backend re-issues a JWT with
+   * the SELLER role, which we persist so seller features unlock immediately.
+   * Buying ability is retained.
+   */
+  becomeSeller(): Observable<ApiResponse<AuthResponse>> {
+    return this.http.post<ApiResponse<AuthResponse>>(`${environment.apiUrl}/profile/become-seller`, {}).pipe(
+      tap((r) => {
+        if (r.success) this.persist(r.data);
+      }),
+    );
+  }
+
+  /**
+   * Silently re-issue the JWT from the server so locally-cached fields
+   * (esp. isVerified after an admin approval) stay fresh — no re-login needed.
+   * Fails quietly; the error interceptor still handles a genuinely expired token.
+   */
+  refreshSession(): void {
+    if (!this.isLoggedIn()) return;
+    this.http.post<ApiResponse<AuthResponse>>(`${environment.apiUrl}/profile/refresh-token`, {}).subscribe({
+      next: (r) => {
+        if (r.success) this.persist(r.data);
+      },
+      error: () => {},
+    });
+  }
+
   logout() {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
@@ -57,10 +92,13 @@ export class AuthService {
     return localStorage.getItem(this.TOKEN_KEY);
   }
 
+  /**
+   * Returning users land on the shared marketplace home (Browse). Only admins
+   * go to their console. A seller's dashboard stays one click away in the nav;
+   * first-time seller onboarding (verification) is handled by the signup flow.
+   */
   navigateAfterLogin() {
-    const role = this._user()?.role;
-    if (role === 'ADMIN') this.router.navigate(['/admin/dashboard']);
-    else if (role === 'SELLER') this.router.navigate(['/seller/dashboard']);
+    if (this._user()?.role === 'ADMIN') this.router.navigate(['/admin/dashboard']);
     else this.router.navigate(['/browse']);
   }
 

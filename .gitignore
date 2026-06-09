@@ -15,6 +15,11 @@ frontend/.playwright/
 # ─── Dependencies ─────────────────────────────────────
 frontend/node_modules/
 
+# ─── Secrets / local env (never commit credentials) ──
+.env
+*.env
+!.env.example
+
 # ─── Runtime / uploaded files (never commit user data) ─
 uploads/
 backend/uploads/

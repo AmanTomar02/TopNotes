@@ -29,9 +29,9 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/buyer")
-@PreAuthorize("hasRole('BUYER')")
+@PreAuthorize("hasAnyRole('BUYER','SELLER')")
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Buyer", description = "Buyer purchase and review operations")
+@Tag(name = "Buyer", description = "Buyer purchase and review operations (any non-admin user can buy)")
 public class BuyerController {
 
     private final PurchaseService purchaseService;

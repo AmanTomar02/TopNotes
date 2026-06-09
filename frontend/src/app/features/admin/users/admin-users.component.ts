@@ -45,7 +45,7 @@ import { initials } from '@shared/util/note-display';
     @if (loading()) {
       <div class="skel" style="height:300px;border-radius:12px"></div>
     } @else {
-      <div class="table-wrap responsive">
+      <div class="table-wrap">
         <table class="tn">
           <thead>
             <tr>

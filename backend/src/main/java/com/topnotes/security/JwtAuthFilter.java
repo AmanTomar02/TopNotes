@@ -47,14 +47,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String      email       = jwtUtil.extractEmail(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
+                // User is re-loaded from the DB each request, so a suspended/deleted
+                // account is rejected immediately even if its token is still valid.
+                if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
 
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
 
-                log.debug("Authenticated user '{}' for path '{}'", email, request.getRequestURI());
+                    log.debug("Authenticated user '{}' for path '{}'", email, request.getRequestURI());
+                } else {
+                    log.debug("Rejected inactive user '{}' for path '{}'", email, request.getRequestURI());
+                }
             }
         } catch (Exception ex) {
             log.error("Cannot set user authentication for '{}': {}",

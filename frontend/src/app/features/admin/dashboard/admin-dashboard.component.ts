@@ -21,14 +21,14 @@ import { initials, rupeeShort } from '@shared/util/note-display';
     </div>
 
     @if (loading()) {
-      <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);">
+      <div class="stat-grid stat-grid-5">
         @for (s of [1, 2, 3, 4, 5]; track s) {
           <div class="skel" style="height:108px;border-radius:12px"></div>
         }
       </div>
     } @else {
       @if (data(); as d) {
-        <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);">
+        <div class="stat-grid stat-grid-5">
           <div class="stat-card">
             <div class="s-top"><span class="s-label">Total users</span></div>
             <div class="s-value">{{ d.totalUsers || 0 }}</div>

@@ -3,9 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Params, Router } from '@angular/router';
 import { Subject, of } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { LucideAngularModule } from 'lucide-angular';
 import { ApiService } from '@core/services/api.service';
 import { Note, PageResponse } from '@core/models';
 import { NoteCardComponent } from '@ui/note-card/note-card.component';
+import { IllustrationComponent } from '@ui/illustration/illustration.component';
 
 const SUBJECTS = ['Physics', 'Chemistry', 'Mathematics', 'Biology'];
 const CLASSES = ['Class 11', 'Class 12'];
@@ -21,7 +23,7 @@ const PAGE_SIZE = 12;
   selector: 'app-browse',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NoteCardComponent],
+  imports: [NoteCardComponent, LucideAngularModule, IllustrationComponent],
   template: `
     <div class="page-head">
       <div>
@@ -33,9 +35,7 @@ const PAGE_SIZE = 12;
 
     <div class="filter-bar">
       <button class="btn btn-secondary filter-toggle" (click)="filtersOpen.set(!filtersOpen())">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-        </svg>
+        <lucide-icon name="sliders-horizontal" [size]="16" [strokeWidth]="1.8" />
         Filters
       </button>
       @if (activeChips().length) {
@@ -48,6 +48,12 @@ const PAGE_SIZE = 12;
 
     <div class="browse-layout">
       <aside class="filter-side" [class.open]="filtersOpen()" aria-label="Filters">
+        <div class="filter-head">
+          <h4 class="filter-title">Filters</h4>
+          @if (activeChips().length) {
+            <button class="link-clear" (click)="clearAll()">Clear all</button>
+          }
+        </div>
         <div class="filter-group">
           <h4>Class</h4>
           @for (c of classes; track c) {
@@ -134,12 +140,7 @@ const PAGE_SIZE = 12;
           </div>
         } @else if (notes().length === 0) {
           <div class="card empty">
-            <div class="e-ic">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7" />
-                <path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-              </svg>
-            </div>
+            <app-illustration name="notes" />
             <h3>No notes match your filters</h3>
             <p>Try clearing a filter or searching for a different topic.</p>
             <button class="btn btn-primary" (click)="clearAll()">Clear filters</button>
