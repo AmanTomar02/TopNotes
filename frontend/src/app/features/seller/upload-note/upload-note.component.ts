@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
 import { ToastService } from '@core/services/toast.service';
@@ -12,7 +12,7 @@ import { NoteCardComponent } from '@ui/note-card/note-card.component';
   selector: 'app-upload-note',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, NoteCardComponent],
+  imports: [ReactiveFormsModule, NoteCardComponent, RouterLink],
   template: `
     <div class="page-head">
       <div>
@@ -21,6 +21,26 @@ import { NoteCardComponent } from '@ui/note-card/note-card.component';
         <p>Add a new set of notes to the marketplace.</p>
       </div>
     </div>
+
+    @if (!auth.isVerified()) {
+      <div class="verify-banner">
+        <span class="vb-ic"
+          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linejoin="round"
+            />
+            <path d="M12 8.5v4M12 16v.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg
+        ></span>
+        <div class="vb-body">
+          <b>Verify your account to publish</b>
+          <span>You can prepare your listing now, but publishing needs a one-time check — pass a short test and upload your marksheet.</span>
+        </div>
+        <a class="btn btn-primary" routerLink="/seller/verification">Get verified</a>
+      </div>
+    }
 
     <form class="upload-grid" [formGroup]="form" (ngSubmit)="publish()">
       <div>
@@ -149,7 +169,7 @@ import { NoteCardComponent } from '@ui/note-card/note-card.component';
 export class UploadNoteComponent {
   private fb = inject(FormBuilder);
   private api = inject(ApiService);
-  private auth = inject(AuthService);
+  protected auth = inject(AuthService);
   private toast = inject(ToastService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
@@ -170,6 +190,9 @@ export class UploadNoteComponent {
   private formValue = signal(this.form.getRawValue());
 
   constructor() {
+    // Pull the latest account state so the "verify to publish" banner reflects
+    // an admin approval that may have happened mid-session (without a re-login).
+    this.auth.refreshSession();
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.formValue.set(this.form.getRawValue()));

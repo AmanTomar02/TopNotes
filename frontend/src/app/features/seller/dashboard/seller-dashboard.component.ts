@@ -5,13 +5,14 @@ import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
 import { Purchase, SellerDashboard } from '@core/models';
 import { AreaChartComponent } from '@ui/area-chart/area-chart.component';
+import { IllustrationComponent } from '@ui/illustration/illustration.component';
 import { initials, rupeeShort } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-seller-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, AreaChartComponent],
+  imports: [RouterLink, AreaChartComponent, IllustrationComponent],
   template: `
     <div class="page-head">
       <div>
@@ -39,26 +40,16 @@ import { initials, rupeeShort } from '@shared/util/note-display';
       @if (data(); as d) {
         @if (d.totalSales === 0 && d.totalNotes === 0) {
           <div class="card empty">
-            <div class="e-ic">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path
-                  d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </div>
-            <h3>No sales yet</h3>
-            <p>Upload your first set of notes to start earning. Verified toppers earn on every download.</p>
-            <a class="btn btn-primary" routerLink="/seller/upload">Upload your first note</a>
+            <app-illustration name="sales" />
+            @if (!d.isVerified) {
+              <h3>Get verified to start selling</h3>
+              <p>Before you can publish notes, complete a one-time verification — a short test and your marksheet.</p>
+              <a class="btn btn-primary" routerLink="/seller/verification">Get verified</a>
+            } @else {
+              <h3>No sales yet</h3>
+              <p>Upload your first set of notes to start earning. Verified toppers earn on every download.</p>
+              <a class="btn btn-primary" routerLink="/seller/upload">Upload your first note</a>
+            }
           </div>
         } @else {
           <div class="stat-grid">

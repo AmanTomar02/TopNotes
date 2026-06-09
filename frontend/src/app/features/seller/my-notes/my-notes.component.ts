@@ -5,13 +5,14 @@ import { ApiService } from '@core/services/api.service';
 import { ToastService } from '@core/services/toast.service';
 import { ConfirmService } from '@core/services/confirm.service';
 import { Note } from '@core/models';
+import { IllustrationComponent } from '@ui/illustration/illustration.component';
 import { subjectGradientFlat } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-my-notes',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, IllustrationComponent],
   template: `
     <div class="page-head">
       <div>
@@ -33,22 +34,13 @@ import { subjectGradientFlat } from '@shared/util/note-display';
       <div class="skel" style="height:240px;border-radius:12px"></div>
     } @else if (notes().length === 0) {
       <div class="card empty">
-        <div class="e-ic">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M6 3h9l5 5v13H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </div>
+        <app-illustration name="study" />
         <h3>No notes yet</h3>
         <p>Upload your first note to start selling.</p>
         <a class="btn btn-primary" routerLink="/seller/upload">Upload a note</a>
       </div>
     } @else {
-      <div class="table-wrap responsive">
+      <div class="table-wrap">
         <table class="tn">
           <thead>
             <tr>

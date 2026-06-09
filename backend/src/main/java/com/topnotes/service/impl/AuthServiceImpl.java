@@ -78,6 +78,34 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(user, token);
     }
 
+    @Override
+    @Transactional
+    public AuthResponse becomeSeller(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        if (user.getRole() == UserRole.ADMIN) {
+            throw new BadRequestException("Admin accounts cannot become sellers");
+        }
+        if (user.getRole() != UserRole.SELLER) {
+            user.setRole(UserRole.SELLER);
+            user = userRepository.save(user);
+            log.info("User id={} upgraded BUYER -> SELLER", user.getId());
+        }
+
+        // Re-issue the token so the new role/authority takes effect immediately.
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getId());
+        return buildAuthResponse(user, token);
+    }
+
+    @Override
+    public AuthResponse refreshToken(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), user.getId());
+        return buildAuthResponse(user, token);
+    }
+
     // ── Private helpers ───────────────────────────────────────
 
     private AuthResponse buildAuthResponse(User user, String token) {

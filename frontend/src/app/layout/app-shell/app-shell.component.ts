@@ -13,8 +13,10 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { animate, query, style, transition, trigger } from '@angular/animations';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, filter } from 'rxjs/operators';
+import { LucideAngularModule } from 'lucide-angular';
 import { AuthService } from '@core/services/auth.service';
 import { ApiService } from '@core/services/api.service';
+import { ToastService } from '@core/services/toast.service';
 import { AppNotification } from '@core/models';
 
 const routeEnter = trigger('routeEnter', [
@@ -34,14 +36,14 @@ const routeEnter = trigger('routeEnter', [
   selector: 'app-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
   animations: [routeEnter],
   template: `
     <div class="app">
       <!-- Sidebar -->
       <aside class="sidebar" aria-label="Primary navigation">
         <div class="side-brand">
-          <a class="tn-logo" [routerLink]="home()"
+          <a class="tn-logo" routerLink="/browse"
             ><span class="mark"><span>T</span></span
             ><span class="logo-text">TopNotes</span></a
           >
@@ -50,157 +52,55 @@ const routeEnter = trigger('routeEnter', [
           <div class="nav-section buyer">
             <div class="nav-head">Marketplace</div>
             <a class="nav-item" routerLink="/browse" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7" />
-                  <path
-                    d="m20 20-3.2-3.2"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="search" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Browse</span></a
             >
             <a class="nav-item" routerLink="/my-purchases" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M4 7h16l-1.4 11.2A2 2 0 0 1 16.6 20H7.4a2 2 0 0 1-2-1.8L4 7Z"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linejoin="round"
-                  />
-                  <path d="M9 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.7" /></svg></span
+              ><span class="ic"><lucide-icon name="shopping-bag" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">My Purchases</span></a
             >
+            @if (auth.isBuyer()) {
+              <button type="button" class="nav-item nav-cta" (click)="becomeSeller()" [disabled]="upgrading()">
+                <span class="ic"><lucide-icon name="store" [size]="20" [strokeWidth]="1.7" /></span
+                ><span class="lbl">{{ upgrading() ? 'Upgrading…' : 'Become a seller' }}</span>
+              </button>
+            }
           </div>
           <div class="nav-section seller">
             <div class="nav-head">Seller</div>
             <a class="nav-item" routerLink="/seller/dashboard" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-                  <rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-                  <rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-                  <rect
-                    x="3"
-                    y="16"
-                    width="7"
-                    height="5"
-                    rx="1.5"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="layout-dashboard" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Dashboard</span></a
             >
             <a class="nav-item" routerLink="/seller/upload" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="upload" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Upload</span></a
             >
             <a class="nav-item" routerLink="/seller/notes" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M6 3h9l5 5v13H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linejoin="round"
-                  />
-                  <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" /></svg></span
+              ><span class="ic"><lucide-icon name="file-text" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">My Notes</span></a
             >
           </div>
           <div class="nav-section admin">
             <div class="nav-head">Admin</div>
             <a class="nav-item" routerLink="/admin/dashboard" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-                  <rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-                  <rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-                  <rect
-                    x="3"
-                    y="16"
-                    width="7"
-                    height="5"
-                    rx="1.5"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="layout-dashboard" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Dashboard</span></a
             >
             <a class="nav-item" routerLink="/admin/users" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7" />
-                  <path
-                    d="M3.5 19a5.5 5.5 0 0 1 11 0"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M16 7.5a3 3 0 0 1 0 6m4.5 5.5a4.7 4.7 0 0 0-3.2-4.4"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="users" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Users</span></a
             >
             <a class="nav-item" routerLink="/admin/verifications" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="m9 12 2 2 4-4.5"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="shield-check" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Verifications</span></a
             >
             <a class="nav-item" routerLink="/admin/test" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="1.7" />
-                  <path
-                    d="M8 8h5M8 12h8M8 16h6"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="clipboard-list" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Test Manager</span></a
             >
             <a class="nav-item" routerLink="/admin/config" routerLinkActive="active"
-              ><span class="ic"
-                ><svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7" />
-                  <path
-                    d="M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2m10-10 2-2"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                  /></svg></span
+              ><span class="ic"><lucide-icon name="settings" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Config</span></a
             >
           </div>
@@ -210,22 +110,15 @@ const routeEnter = trigger('routeEnter', [
       <!-- Topbar -->
       <header class="topbar">
         <button class="collapse-btn hamburger" (click)="drawer.set(true)" aria-label="Open menu">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
+          <lucide-icon name="menu" [size]="22" [strokeWidth]="1.8" />
         </button>
         <button class="collapse-btn" (click)="collapsed.set(!collapsed())" aria-label="Collapse sidebar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
+          <lucide-icon name="panel-left" [size]="20" [strokeWidth]="1.8" />
         </button>
 
         <div class="topbar-search">
           <div class="search">
-            <span class="s-ic"
-              ><svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7" />
-                <path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg></span
+            <span class="s-ic"><lucide-icon name="search" [size]="18" [strokeWidth]="1.7" /></span
             ><input
               class="input"
               type="search"
@@ -242,15 +135,7 @@ const routeEnter = trigger('routeEnter', [
         <div class="topbar-right">
           @if (auth.isLoggedIn()) {
             <button class="icon-btn" (click)="toggleNotif($event)" aria-label="Notifications">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linejoin="round"
-                />
-                <path d="M10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-              </svg>
+              <lucide-icon name="bell" [size]="22" [strokeWidth]="1.7" />
               @if (unread() > 0) {
                 <span class="unread"></span>
               }
@@ -260,16 +145,7 @@ const routeEnter = trigger('routeEnter', [
               ><span class="who"
                 ><b>{{ auth.user()?.fullName }}</b
                 ><small>{{ roleLabel() }}</small></span
-              ><span class="caret"
-                ><svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                  <path
-                    d="M3 5.5 7 9.5l4-4"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  /></svg
-              ></span>
+              ><span class="caret"><lucide-icon name="chevron-down" [size]="16" [strokeWidth]="1.7" /></span>
             </button>
           } @else {
             <a class="btn btn-ghost" routerLink="/login">Log in</a>
@@ -295,35 +171,14 @@ const routeEnter = trigger('routeEnter', [
       </div>
       <div class="menu-list">
         <a class="menu-item" [routerLink]="home()"
-          ><span class="ic"
-            ><svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.7" />
-              <path
-                d="M5 20a7 7 0 0 1 14 0"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-              /></svg></span
-          >Dashboard<span class="badge badge-indigo menu-role">{{ roleLabel() }}</span></a
+          ><span class="ic"><lucide-icon name="user" [size]="18" [strokeWidth]="1.7" /></span>Dashboard<span
+            class="badge badge-indigo menu-role"
+            >{{ roleLabel() }}</span
+          ></a
         >
         <div class="menu-sep"></div>
         <button class="menu-item danger" (click)="auth.logout()">
-          <span class="ic"
-            ><svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M15 12H4m0 0 3.5-3.5M4 12l3.5 3.5"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M11 5h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-6"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-              /></svg></span
-          >Log out
+          <span class="ic"><lucide-icon name="log-out" [size]="18" [strokeWidth]="1.7" /></span>Log out
         </button>
       </div>
     </div>
@@ -352,15 +207,7 @@ const routeEnter = trigger('routeEnter', [
           @for (n of notifications(); track n.id) {
             <div class="notif" [class.unread]="!n.isRead">
               <span class="n-ic" [class]="'n-ic ' + iconColor(n.type)"
-                ><svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="m5 13 4 4L19 7"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  /></svg
-              ></span>
+                ><lucide-icon name="check" [size]="18" [strokeWidth]="2" /></span>
               <div class="n-body">
                 <p>{{ n.message }}</p>
                 <time>{{ n.title }}</time>
@@ -386,88 +233,35 @@ const routeEnter = trigger('routeEnter', [
     <nav class="mobile-tabs" aria-label="Mobile navigation">
       <div class="mtab-section buyer">
         <a class="mtab" routerLink="/browse" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.7" />
-            <path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg
-          ><span>Browse</span></a
+          ><lucide-icon name="search" [size]="22" [strokeWidth]="1.7" /><span>Browse</span></a
         >
         <a class="mtab" routerLink="/my-purchases" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M4 7h16l-1.4 11.2A2 2 0 0 1 16.6 20H7.4a2 2 0 0 1-2-1.8L4 7Z"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linejoin="round"
-            /></svg
-          ><span>Purchases</span></a
+          ><lucide-icon name="shopping-bag" [size]="22" [strokeWidth]="1.7" /><span>Purchases</span></a
         >
       </div>
       <div class="mtab-section seller">
         <a class="mtab" routerLink="/seller/dashboard" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-            <rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-            <rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-            <rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7" /></svg
-          ><span>Dash</span></a
+          ><lucide-icon name="layout-dashboard" [size]="22" [strokeWidth]="1.7" /><span>Dash</span></a
         >
         <a class="mtab" routerLink="/seller/upload" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            /></svg
-          ><span>Upload</span></a
+          ><lucide-icon name="upload" [size]="22" [strokeWidth]="1.7" /><span>Upload</span></a
         >
         <a class="mtab" routerLink="/seller/notes" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M6 3h9l5 5v13H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linejoin="round"
-            /></svg
-          ><span>Notes</span></a
+          ><lucide-icon name="file-text" [size]="22" [strokeWidth]="1.7" /><span>Notes</span></a
         >
       </div>
       <div class="mtab-section admin">
         <a class="mtab" routerLink="/admin/dashboard" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-            <rect x="14" y="3" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-            <rect x="14" y="12" width="7" height="9" rx="1.5" stroke="currentColor" stroke-width="1.7" />
-            <rect x="3" y="16" width="7" height="5" rx="1.5" stroke="currentColor" stroke-width="1.7" /></svg
-          ><span>Home</span></a
+          ><lucide-icon name="layout-dashboard" [size]="22" [strokeWidth]="1.7" /><span>Home</span></a
         >
         <a class="mtab" routerLink="/admin/users" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7" />
-            <path d="M3.5 19a5.5 5.5 0 0 1 11 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" /></svg
-          ><span>Users</span></a
+          ><lucide-icon name="users" [size]="22" [strokeWidth]="1.7" /><span>Users</span></a
         >
         <a class="mtab" routerLink="/admin/verifications" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M12 2.5 4 6v5c0 5 3.5 8 8 9.5 4.5-1.5 8-4.5 8-9.5V6l-8-3.5Z"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linejoin="round"
-            /></svg
-          ><span>Verify</span></a
+          ><lucide-icon name="shield-check" [size]="22" [strokeWidth]="1.7" /><span>Verify</span></a
         >
         <a class="mtab" routerLink="/admin/config" routerLinkActive="active"
-          ><svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7" />
-            <path
-              d="M12 2v3m0 14v3M2 12h3m14 0h3"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-            /></svg
-          ><span>Config</span></a
+          ><lucide-icon name="settings" [size]="22" [strokeWidth]="1.7" /><span>Config</span></a
         >
       </div>
     </nav>
@@ -476,6 +270,7 @@ const routeEnter = trigger('routeEnter', [
 export class AppShellComponent {
   protected auth = inject(AuthService);
   private api = inject(ApiService);
+  private toast = inject(ToastService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
 
@@ -487,11 +282,12 @@ export class AppShellComponent {
   protected unread = signal(0);
   protected notifications = signal<AppNotification[]>([]);
   protected notifLoading = signal(false);
+  protected upgrading = signal(false);
 
-  protected roleAttr = computed(() => (this.auth.isAdmin() ? 'admin' : this.auth.isSeller() ? 'seller' : 'buyer'));
   protected roleLabel = computed(() => {
-    const r = this.auth.user()?.role;
-    return r === 'ADMIN' ? 'Administrator' : r === 'SELLER' ? 'Topper · Seller' : 'Buyer';
+    if (this.auth.isAdmin()) return 'Administrator';
+    // Every non-admin can buy; sellers can do both.
+    return this.auth.canSell() ? 'Buyer & Seller' : 'Buyer';
   });
   protected home = computed(() =>
     this.auth.isAdmin() ? '/admin/dashboard' : this.auth.isSeller() ? '/seller/dashboard' : '/browse',
@@ -507,22 +303,28 @@ export class AppShellComponent {
       .subscribe((q) => this.navigateSearch(q));
 
     // Reflect shell state onto <body> for the design's CSS selectors.
+    // Capabilities are independent classes — a user can be both buyer & seller.
     effect(() => {
       const b = document.body;
       b.classList.add('app-body');
-      b.dataset['role'] = this.roleAttr();
+      const admin = this.auth.isAdmin();
+      b.classList.toggle('is-admin', admin);
+      b.classList.toggle('is-seller', this.auth.isSeller() && !admin);
+      b.classList.toggle('is-buyer', this.auth.isLoggedIn() && !admin);
       b.dataset['collapsed'] = this.collapsed() ? '1' : '0';
       b.dataset['drawer'] = this.drawer() ? '1' : '0';
     });
     this.destroyRef.onDestroy(() => {
       const b = document.body;
-      b.classList.remove('app-body');
-      b.removeAttribute('data-role');
+      b.classList.remove('app-body', 'is-admin', 'is-seller', 'is-buyer');
       b.removeAttribute('data-collapsed');
       b.removeAttribute('data-drawer');
     });
 
     if (this.auth.isLoggedIn()) {
+      // Refresh the JWT each time the shell loads so an admin-approved seller
+      // picks up isVerified=true on reload without logging out and back in.
+      this.auth.refreshSession();
       this.api
         .getUnreadCount()
         .pipe(takeUntilDestroyed(this.destroyRef))
@@ -543,6 +345,26 @@ export class AppShellComponent {
   protected closeMenus() {
     this.notifOpen.set(false);
     this.avatarOpen.set(false);
+  }
+
+  /** Upgrade a buyer into a seller, then send them into verification. */
+  protected becomeSeller() {
+    if (this.upgrading()) return;
+    this.upgrading.set(true);
+    this.auth
+      .becomeSeller()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.upgrading.set(false);
+          this.toast.success('You are now a seller — complete verification to publish notes.');
+          this.router.navigate(['/seller/verification']);
+        },
+        error: () => {
+          this.upgrading.set(false);
+          this.toast.error('Could not upgrade to seller. Please try again.');
+        },
+      });
   }
 
   protected toggleAvatar(e: Event) {

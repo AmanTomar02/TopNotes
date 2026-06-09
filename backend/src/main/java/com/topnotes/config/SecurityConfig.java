@@ -76,7 +76,8 @@ public class SecurityConfig {
                 // ── Role-based endpoints ───────────────────
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/seller/**").hasRole("SELLER")
-                .requestMatchers("/buyer/**").hasRole("BUYER")
+                // Buying is open to any non-admin user (a seller can buy too)
+                .requestMatchers("/buyer/**").hasAnyRole("BUYER", "SELLER")
 
                 // ── Authenticated endpoints ────────────────
                 .requestMatchers("/notifications/**").authenticated()
@@ -87,8 +88,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH,  "/notes/**").hasRole("SELLER")
                 .requestMatchers(HttpMethod.DELETE, "/notes/**").hasRole("SELLER")
 
-                // ── Note full view requires BUYER ──────────
-                .requestMatchers(HttpMethod.GET, "/notes/{id}/view").hasRole("BUYER")
+                // ── Note full view requires a purchase (any non-admin) ──
+                .requestMatchers(HttpMethod.GET, "/notes/{id}/view").hasAnyRole("BUYER", "SELLER")
 
                 // Deny everything else unless authenticated
                 .anyRequest().authenticated()

@@ -104,9 +104,9 @@ public class NoteController {
     // ── BUYER: Secure full-note view ──────────────────────────
 
     @GetMapping("/{id}/view")
-    @PreAuthorize("hasRole('BUYER')")
+    @PreAuthorize("hasAnyRole('BUYER','SELLER')")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "Securely stream purchased note PDF inline (BUYER only)")
+    @Operation(summary = "Securely stream purchased note PDF inline (requires purchase)")
     public ResponseEntity<byte[]> viewPurchasedNote(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails principal) {

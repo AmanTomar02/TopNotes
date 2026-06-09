@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  HostBinding,
   HostListener,
   computed,
   inject,
@@ -31,10 +32,6 @@ GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink],
-  host: {
-    class: 'secure-viewer-host',
-    '(contextmenu)': '$event.preventDefault()',
-  },
   template: `
     <div class="viewer">
       <div class="viewer-top">
@@ -116,6 +113,8 @@ export class NoteViewComponent {
   private destroyRef = inject(DestroyRef);
 
   private canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('pageCanvas');
+
+  @HostBinding('class.secure-viewer-host') protected readonly hostClass = true;
 
   protected note = signal<Note | null>(null);
   protected loading = signal(true);
@@ -240,6 +239,11 @@ export class NoteViewComponent {
   @HostListener('window:beforeprint')
   protected onBeforePrint(): void {
     this.activateShield();
+  }
+
+  @HostListener('contextmenu', ['$event'])
+  protected onContextMenu(event: Event): void {
+    event.preventDefault();
   }
 
   protected prevPage(): void {

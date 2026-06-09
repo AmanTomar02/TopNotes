@@ -13,7 +13,7 @@ export const routes: Routes = [
   // ── Secure viewer (full-screen, no shell) ───────────────────
   {
     path: 'notes/:id/view',
-    canActivate: [authGuard, roleGuard(['BUYER'])],
+    canActivate: [authGuard, roleGuard(['BUYER', 'SELLER'])],
     loadComponent: () => import('@features/buyer/note-view/note-view.component').then((m) => m.NoteViewComponent),
   },
 
@@ -36,7 +36,7 @@ export const routes: Routes = [
       },
       {
         path: 'my-purchases',
-        canActivate: [authGuard, roleGuard(['BUYER'])],
+        canActivate: [authGuard, roleGuard(['BUYER', 'SELLER'])],
         loadComponent: () =>
           import('@features/buyer/my-purchases/my-purchases.component').then((m) => m.MyPurchasesComponent),
       },

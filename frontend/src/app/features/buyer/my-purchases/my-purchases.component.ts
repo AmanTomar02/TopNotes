@@ -4,13 +4,14 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '@core/services/api.service';
 import { Purchase } from '@core/models';
+import { IllustrationComponent } from '@ui/illustration/illustration.component';
 import { subjectGradientFlat } from '@shared/util/note-display';
 
 @Component({
   selector: 'app-my-purchases',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe],
+  imports: [RouterLink, DatePipe, IllustrationComponent],
   template: `
     <div class="page-head">
       <div>
@@ -24,17 +25,7 @@ import { subjectGradientFlat } from '@shared/util/note-display';
       <div class="skel" style="height:240px;border-radius:12px"></div>
     } @else if (purchases().length === 0) {
       <div class="card empty">
-        <div class="e-ic">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M4 7h16l-1.4 11.2A2 2 0 0 1 16.6 20H7.4a2 2 0 0 1-2-1.8L4 7Z"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linejoin="round"
-            />
-            <path d="M9 7V5a3 3 0 0 1 6 0v2" stroke="currentColor" stroke-width="1.7" />
-          </svg>
-        </div>
+        <app-illustration name="purchases" />
         <h3>You haven't bought any notes yet</h3>
         <p>Browse verified topper notes for your exam and start your library.</p>
         <a class="btn btn-primary" routerLink="/browse">Browse notes</a>
