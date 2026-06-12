@@ -68,11 +68,6 @@ GlobalWorkerOptions.workerSrc = 'assets/pdf.worker.min.mjs';
         } @else {
           <div class="doc-page secure-doc-page">
             <canvas #pageCanvas class="secure-canvas"></canvas>
-            <div class="watermark watermark--overlay anti-capture-grid" aria-hidden="true">
-              @for (m of marks; track $index) {
-                <span>{{ watermarkLine() }}</span>
-              }
-            </div>
             <div class="watermark-stamp" aria-hidden="true">{{ watermarkLine() }}</div>
           </div>
         }
@@ -124,7 +119,6 @@ export class NoteViewComponent {
   protected blurred = signal(false);
   protected shielded = signal(false);
   protected liveStamp = signal(this.formatStamp());
-  protected marks = Array.from({ length: 48 });
 
   private id = Number(this.route.snapshot.paramMap.get('id'));
   private pdfDoc: PDFDocumentProxy | null = null;
@@ -343,18 +337,32 @@ export class NoteViewComponent {
   }
 
   private drawWatermark(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-    const text = this.watermarkLine();
+    const buyer = this.auth.user()?.email ?? 'TopNotes user';
+    const seller = this.note()?.seller?.fullName;
     ctx.save();
-    ctx.globalAlpha = 0.28;
-    ctx.font = '700 13px system-ui, sans-serif';
-    ctx.fillStyle = '#344054';
+    ctx.textAlign = 'center';
+
+    // Light diagonal tiling of the buyer's id — keeps leaks traceable while
+    // staying faint enough to read the note through it.
+    ctx.save();
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = '#475467';
+    ctx.font = '600 12px system-ui, sans-serif';
     ctx.translate(width / 2, height / 2);
     ctx.rotate(-30 * (Math.PI / 180));
-
-    for (let y = -height * 1.2; y < height * 1.2; y += 64) {
-      for (let x = -width * 1.2; x < width * 1.2; x += 260) {
-        ctx.fillText(text, x, y);
+    for (let y = -height * 1.2; y < height * 1.2; y += 150) {
+      for (let x = -width * 1.2; x < width * 1.2; x += 340) {
+        ctx.fillText(buyer, x, y);
       }
+    }
+    ctx.restore();
+
+    // Top: the seller (note author) name.
+    if (seller) {
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = '#5B4BE0';
+      ctx.font = '700 13px system-ui, sans-serif';
+      ctx.fillText(`Notes by ${seller}`, width / 2, 24);
     }
     ctx.restore();
   }

@@ -148,6 +148,28 @@ import { NoteCardComponent } from '@ui/note-card/note-card.component';
               <button type="button" class="btn btn-ghost btn-sm" (click)="pdfFile.set(null)">Remove</button>
             </div>
           }
+
+          <input
+            #thumbInput
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            hidden
+            (change)="onThumb($any($event.target).files)"
+          />
+          @if (thumbUrl(); as t) {
+            <div class="upload-file">
+              <img class="uf-thumb" [src]="t" alt="Cover preview" />
+              <div class="uf-body">
+                <div class="uf-name">Cover image</div>
+                <div class="uf-pct">Shown on the note card</div>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="removeThumb()">Remove</button>
+            </div>
+          } @else {
+            <button type="button" class="btn btn-secondary btn-sm uf-add-cover" (click)="thumbInput.click()">
+              + Add cover image (optional)
+            </button>
+          }
         </div>
 
         <div class="card form-section">
@@ -175,6 +197,8 @@ export class UploadNoteComponent {
   private destroyRef = inject(DestroyRef);
 
   protected pdfFile = signal<File | null>(null);
+  protected thumbFile = signal<File | null>(null);
+  protected thumbUrl = signal<string | null>(null);
   protected dragging = signal(false);
   protected publishing = signal(false);
 
@@ -211,6 +235,7 @@ export class UploadNoteComponent {
       totalPages: 0,
       averageRating: 0,
       reviewCount: 0,
+      thumbnailUrl: this.thumbUrl() ?? undefined,
       seller: { id: 0, fullName: this.auth.user()?.fullName ?? 'You' },
     };
   });
@@ -234,6 +259,30 @@ export class UploadNoteComponent {
     this.pdfFile.set(f);
   }
 
+  protected onThumb(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) {
+      this.toast.error('Cover must be a JPG, PNG or WebP image.');
+      return;
+    }
+    if (f.size > 5 * 1048576) {
+      this.toast.error('Cover image must be under 5MB.');
+      return;
+    }
+    const prev = this.thumbUrl();
+    if (prev) URL.revokeObjectURL(prev);
+    this.thumbFile.set(f);
+    this.thumbUrl.set(URL.createObjectURL(f));
+  }
+
+  protected removeThumb() {
+    const prev = this.thumbUrl();
+    if (prev) URL.revokeObjectURL(prev);
+    this.thumbFile.set(null);
+    this.thumbUrl.set(null);
+  }
+
   protected publish() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -249,6 +298,7 @@ export class UploadNoteComponent {
     const fd = new FormData();
     fd.append('data', new Blob([JSON.stringify(this.form.getRawValue())], { type: 'application/json' }));
     fd.append('pdf', this.pdfFile()!);
+    if (this.thumbFile()) fd.append('thumbnail', this.thumbFile()!);
 
     this.api
       .uploadNote(fd)

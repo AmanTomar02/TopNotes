@@ -89,6 +89,39 @@ export interface Purchase {
   purchasedAt?: string;
 }
 
+export interface PaymentOrder {
+  provider: string;
+  mode: 'sandbox' | 'production' | string;
+  orderId: string;
+  paymentSessionId: string;
+  amount: number;
+  currency: string;
+  noteId: number;
+  noteTitle: string;
+}
+
+export interface SellerEarnings {
+  totalEarned: number;
+  paidOut: number;
+  inProgress: number;
+  available: number;
+  minWithdraw: number;
+  upiSet: boolean;
+}
+
+export interface PayoutRow {
+  id: number;
+  sellerId: number;
+  sellerName: string;
+  upiId: string;
+  amount: number;
+  status: 'PENDING' | 'PAID' | 'FAILED' | string;
+  reference?: string;
+  failureReason?: string;
+  requestedAt?: string;
+  paidAt?: string;
+}
+
 export interface Review {
   id: number;
   buyerName?: string;

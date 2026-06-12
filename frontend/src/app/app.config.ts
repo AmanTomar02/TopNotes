@@ -22,6 +22,7 @@ import {
   Settings,
   Check,
   SlidersHorizontal,
+  Wallet,
 } from 'lucide-angular';
 import { routes } from './app.routes';
 import { authInterceptor } from '@core/interceptors/auth.interceptor';
@@ -52,6 +53,7 @@ export const appConfig: ApplicationConfig = {
         Settings,
         Check,
         SlidersHorizontal,
+        Wallet,
       }),
     ),
   ],

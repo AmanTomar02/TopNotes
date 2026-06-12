@@ -12,8 +12,12 @@ import { examLabel, initials, rupee, subjectGradient } from '@shared/util/note-d
   template: `
     <a class="note-card" [routerLink]="['/notes', note().id]">
       <div class="thumb" [style.height.px]="168" [style.background]="thumbBg()">
-        <span class="thumb-sub">{{ note().subject }}</span>
-        <span class="thumb-glyph">{{ glyph() }}</span>
+        @if (note().thumbnailUrl) {
+          <img class="thumb-img" [src]="note().thumbnailUrl" [alt]="note().title" loading="lazy" />
+        } @else {
+          <span class="thumb-sub">{{ note().subject }}</span>
+          <span class="thumb-glyph">{{ glyph() }}</span>
+        }
       </div>
       <div class="nc-body">
         <div class="nc-badges">

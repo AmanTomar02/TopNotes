@@ -106,6 +106,25 @@ public class AuthServiceImpl implements AuthService {
         return buildAuthResponse(user, token);
     }
 
+    @Override
+    public String getUpiId(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"))
+                .getUpiId();
+    }
+
+    @Override
+    @Transactional
+    public void updateUpiId(Long userId, String upiId) {
+        if (upiId == null || !upiId.trim().matches("^[\\w.\\-]{2,}@[a-zA-Z]{2,}$")) {
+            throw new BadRequestException("Enter a valid UPI ID (e.g. name@bank)");
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BadRequestException("User not found"));
+        user.setUpiId(upiId.trim());
+        userRepository.save(user);
+    }
+
     // ── Private helpers ───────────────────────────────────────
 
     private AuthResponse buildAuthResponse(User user, String token) {

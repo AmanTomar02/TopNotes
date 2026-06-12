@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Checkout callback payload sent by the browser after payment. */
+/** Checkout callback payload sent by the browser after a Cashfree payment. */
 @Getter
 @Setter
 public class PaymentVerifyRequest {
@@ -13,11 +13,5 @@ public class PaymentVerifyRequest {
     private Long noteId;
 
     @NotBlank(message = "Order id is required")
-    private String razorpayOrderId;
-
-    @NotBlank(message = "Payment id is required")
-    private String razorpayPaymentId;
-
-    @NotBlank(message = "Payment signature is required")
-    private String razorpaySignature;
+    private String orderId;
 }

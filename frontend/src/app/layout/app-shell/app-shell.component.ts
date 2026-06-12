@@ -55,10 +55,12 @@ const routeEnter = trigger('routeEnter', [
               ><span class="ic"><lucide-icon name="search" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Browse</span></a
             >
-            <a class="nav-item" routerLink="/my-purchases" routerLinkActive="active"
-              ><span class="ic"><lucide-icon name="shopping-bag" [size]="20" [strokeWidth]="1.7" /></span
-              ><span class="lbl">My Purchases</span></a
-            >
+            @if (auth.isLoggedIn()) {
+              <a class="nav-item" routerLink="/my-purchases" routerLinkActive="active"
+                ><span class="ic"><lucide-icon name="shopping-bag" [size]="20" [strokeWidth]="1.7" /></span
+                ><span class="lbl">My Purchases</span></a
+              >
+            }
             @if (auth.isBuyer()) {
               <button type="button" class="nav-item nav-cta" (click)="becomeSeller()" [disabled]="upgrading()">
                 <span class="ic"><lucide-icon name="store" [size]="20" [strokeWidth]="1.7" /></span
@@ -98,6 +100,10 @@ const routeEnter = trigger('routeEnter', [
             <a class="nav-item" routerLink="/admin/test" routerLinkActive="active"
               ><span class="ic"><lucide-icon name="clipboard-list" [size]="20" [strokeWidth]="1.7" /></span
               ><span class="lbl">Test Manager</span></a
+            >
+            <a class="nav-item" routerLink="/admin/payouts" routerLinkActive="active"
+              ><span class="ic"><lucide-icon name="wallet" [size]="20" [strokeWidth]="1.7" /></span
+              ><span class="lbl">Payouts</span></a
             >
             <a class="nav-item" routerLink="/admin/config" routerLinkActive="active"
               ><span class="ic"><lucide-icon name="settings" [size]="20" [strokeWidth]="1.7" /></span
@@ -235,9 +241,11 @@ const routeEnter = trigger('routeEnter', [
         <a class="mtab" routerLink="/browse" routerLinkActive="active"
           ><lucide-icon name="search" [size]="22" [strokeWidth]="1.7" /><span>Browse</span></a
         >
-        <a class="mtab" routerLink="/my-purchases" routerLinkActive="active"
-          ><lucide-icon name="shopping-bag" [size]="22" [strokeWidth]="1.7" /><span>Purchases</span></a
-        >
+        @if (auth.isLoggedIn()) {
+          <a class="mtab" routerLink="/my-purchases" routerLinkActive="active"
+            ><lucide-icon name="shopping-bag" [size]="22" [strokeWidth]="1.7" /><span>Purchases</span></a
+          >
+        }
       </div>
       <div class="mtab-section seller">
         <a class="mtab" routerLink="/seller/dashboard" routerLinkActive="active"
@@ -310,7 +318,9 @@ export class AppShellComponent {
       const admin = this.auth.isAdmin();
       b.classList.toggle('is-admin', admin);
       b.classList.toggle('is-seller', this.auth.isSeller() && !admin);
-      b.classList.toggle('is-buyer', this.auth.isLoggedIn() && !admin);
+      // Browse is public, so the Marketplace section shows for guests too;
+      // auth-only items inside it (My Purchases) are hidden via @if below.
+      b.classList.toggle('is-buyer', !admin);
       b.dataset['collapsed'] = this.collapsed() ? '1' : '0';
       b.dataset['drawer'] = this.drawer() ? '1' : '0';
     });

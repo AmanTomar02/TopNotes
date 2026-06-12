@@ -23,4 +23,10 @@ public interface AuthService {
      * {@code isVerified=true} on reload without logging out and back in.
      */
     AuthResponse refreshToken(Long userId);
+
+    /** Current seller payout UPI (null if not set yet). */
+    String getUpiId(Long userId);
+
+    /** Validate and save the seller's payout UPI VPA. */
+    void updateUpiId(Long userId, String upiId);
 }
