@@ -10,9 +10,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 /**
  * Self-service account actions for the logged-in user.
@@ -51,5 +56,26 @@ public class ProfileController {
 
         AuthResponse response = authService.refreshToken(principal.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/upi")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Get the current seller payout UPI")
+    public ResponseEntity<ApiResponse<String>> getUpi(
+            @AuthenticationPrincipal CustomUserDetails principal) {
+
+        // 2-arg form so the UPI lands in `data` (success(String) would put it in `message`).
+        return ResponseEntity.ok(ApiResponse.success("Payout UPI", authService.getUpiId(principal.getId())));
+    }
+
+    @PutMapping("/upi")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Set/update the seller payout UPI (for earnings payout)")
+    public ResponseEntity<ApiResponse<Void>> updateUpi(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestBody Map<String, String> body) {
+
+        authService.updateUpiId(principal.getId(), body.get("upiId"));
+        return ResponseEntity.ok(ApiResponse.success("Payout UPI saved"));
     }
 }

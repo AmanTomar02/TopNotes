@@ -7,6 +7,9 @@ import {
   PageResponse,
   Note,
   Purchase,
+  PaymentOrder,
+  SellerEarnings,
+  PayoutRow,
   Review,
   AdminDashboard,
   SellerDashboard,
@@ -54,6 +57,12 @@ export class ApiService {
   purchaseNote(noteId: number): Observable<ApiResponse<Purchase>> {
     return this.http.post<ApiResponse<Purchase>>(`${this.base}/buyer/purchase/${noteId}`, {});
   }
+  createPaymentOrder(noteId: number): Observable<ApiResponse<PaymentOrder>> {
+    return this.http.post<ApiResponse<PaymentOrder>>(`${this.base}/buyer/payments/order/${noteId}`, {});
+  }
+  verifyPayment(noteId: number, orderId: string): Observable<ApiResponse<Purchase>> {
+    return this.http.post<ApiResponse<Purchase>>(`${this.base}/buyer/payments/verify`, { noteId, orderId });
+  }
   getMyPurchases(page = 0, size = 10): Observable<ApiResponse<PageResponse<Purchase>>> {
     return this.http.get<ApiResponse<PageResponse<Purchase>>>(`${this.base}/buyer/purchases`, {
       params: this.p({ page, size }),
@@ -96,6 +105,33 @@ export class ApiService {
   }
   getVerificationStatus(): Observable<ApiResponse<Record<string, unknown>>> {
     return this.http.get<ApiResponse<Record<string, unknown>>>(`${this.base}/seller/verification/status`);
+  }
+  getUpiId(): Observable<ApiResponse<string | null>> {
+    return this.http.get<ApiResponse<string | null>>(`${this.base}/profile/upi`);
+  }
+  setUpiId(upiId: string): Observable<ApiResponse<void>> {
+    return this.http.put<ApiResponse<void>>(`${this.base}/profile/upi`, { upiId });
+  }
+
+  // ── Payouts ────────────────────────────────────────────────
+  getSellerEarnings(): Observable<ApiResponse<SellerEarnings>> {
+    return this.http.get<ApiResponse<SellerEarnings>>(`${this.base}/seller/earnings`);
+  }
+  requestPayout(): Observable<ApiResponse<PayoutRow>> {
+    return this.http.post<ApiResponse<PayoutRow>>(`${this.base}/seller/payouts`, {});
+  }
+  getSellerPayouts(page = 0, size = 10): Observable<ApiResponse<PageResponse<PayoutRow>>> {
+    return this.http.get<ApiResponse<PageResponse<PayoutRow>>>(`${this.base}/seller/payouts`, {
+      params: this.p({ page, size }),
+    });
+  }
+  getPendingPayouts(page = 0, size = 20): Observable<ApiResponse<PageResponse<PayoutRow>>> {
+    return this.http.get<ApiResponse<PageResponse<PayoutRow>>>(`${this.base}/admin/payouts/pending`, {
+      params: this.p({ page, size }),
+    });
+  }
+  payPayout(id: number): Observable<ApiResponse<PayoutRow>> {
+    return this.http.post<ApiResponse<PayoutRow>>(`${this.base}/admin/payouts/${id}/pay`, {});
   }
 
   // ── Admin ──────────────────────────────────────────────────

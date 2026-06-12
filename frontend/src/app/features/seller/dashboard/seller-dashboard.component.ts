@@ -3,7 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
-import { Purchase, SellerDashboard } from '@core/models';
+import { ToastService } from '@core/services/toast.service';
+import { Purchase, SellerDashboard, SellerEarnings } from '@core/models';
 import { AreaChartComponent } from '@ui/area-chart/area-chart.component';
 import { IllustrationComponent } from '@ui/illustration/illustration.component';
 import { initials, rupeeShort } from '@shared/util/note-display';
@@ -145,6 +146,44 @@ import { initials, rupeeShort } from '@shared/util/note-display';
                   ></a
                 >
               </div>
+
+              @if (earnings(); as e) {
+                <div class="card card-pad">
+                  <h3 style="font-size:var(--t-16);margin-bottom:2px;">Earnings</h3>
+                  <div style="font-size:var(--t-28);font-weight:800;letter-spacing:-.02em;">
+                    ₹{{ e.available.toLocaleString('en-IN') }}
+                  </div>
+                  <small style="color:var(--slate);">available to withdraw</small>
+                  <div style="display:flex;gap:18px;margin:12px 0;font-size:13px;color:var(--slate);">
+                    <span>Earned <b>₹{{ e.totalEarned.toLocaleString('en-IN') }}</b></span>
+                    <span>Paid <b>₹{{ e.paidOut.toLocaleString('en-IN') }}</b></span>
+                  </div>
+                  @if (e.inProgress > 0) {
+                    <span class="badge badge-warning" style="margin-bottom:12px;"
+                      >₹{{ e.inProgress.toLocaleString('en-IN') }} payout pending</span
+                    >
+                  }
+                  <button
+                    class="btn btn-primary"
+                    style="width:100%;margin-top:4px;"
+                    [disabled]="withdrawing() || !e.upiSet || e.available < e.minWithdraw"
+                    (click)="withdraw()"
+                  >
+                    {{ withdrawing() ? 'Requesting…' : 'Withdraw ₹' + e.available.toLocaleString('en-IN') }}
+                  </button>
+                  @if (!e.upiSet) {
+                    <a
+                      routerLink="/seller/verification"
+                      style="display:block;text-align:center;margin-top:10px;font-size:13px;font-weight:600;color:var(--indigo-700);"
+                      >Add a payout UPI →</a
+                    >
+                  } @else if (e.available < e.minWithdraw) {
+                    <small style="display:block;text-align:center;margin-top:8px;color:var(--muted);"
+                      >Minimum withdrawal ₹{{ e.minWithdraw }}</small
+                    >
+                  }
+                </div>
+              }
             </div>
           </div>
 
@@ -173,11 +212,14 @@ import { initials, rupeeShort } from '@shared/util/note-display';
 export class SellerDashboardComponent {
   private api = inject(ApiService);
   private auth = inject(AuthService);
+  private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
 
   protected data = signal<SellerDashboard | null>(null);
   protected sales = signal<Purchase[]>([]);
   protected loading = signal(true);
+  protected earnings = signal<SellerEarnings | null>(null);
+  protected withdrawing = signal(false);
 
   protected firstName = computed(() => (this.auth.user()?.fullName ?? 'there').split(' ')[0]);
   protected chartData = computed(() => (this.data()?.salesChart ?? []).map((p) => p.revenue));
@@ -206,6 +248,30 @@ export class SellerDashboardComponent {
       .subscribe({
         next: (r) => this.sales.set(r.data?.content ?? []),
         error: () => {},
+      });
+    this.loadEarnings();
+  }
+
+  private loadEarnings() {
+    this.api
+      .getSellerEarnings()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (r) => this.earnings.set(r.data ?? null), error: () => {} });
+  }
+
+  protected withdraw() {
+    if (this.withdrawing()) return;
+    this.withdrawing.set(true);
+    this.api
+      .requestPayout()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.withdrawing.set(false);
+          this.toast.success('Withdrawal requested — admin will pay out to your UPI.');
+          this.loadEarnings();
+        },
+        error: () => this.withdrawing.set(false),
       });
   }
 

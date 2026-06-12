@@ -5,7 +5,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '@core/services/api.service';
 import { AuthService } from '@core/services/auth.service';
 import { ToastService } from '@core/services/toast.service';
-import { Note, Review } from '@core/models';
+import { load } from '@cashfreepayments/cashfree-js';
+import { Note, PaymentOrder, Review } from '@core/models';
 import { examLabel, initials, subjectGradient } from '@shared/util/note-display';
 
 @Component({
@@ -358,17 +359,53 @@ export class NoteDetailComponent {
     }
     if (this.purchasing()) return;
     this.purchasing.set(true);
+
+    // 1) Create a Cashfree order on the backend → get a payment_session_id.
     this.api
-      .purchaseNote(this.id)
+      .createPaymentOrder(this.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
-          this.purchasing.set(false);
-          this.purchasedLocal.set(true);
-          this.toast.success('Purchase successful — happy studying!');
-        },
+        next: (r) => void this.openCheckout(r.data),
         error: () => this.purchasing.set(false),
       });
+  }
+
+  private async openCheckout(order: PaymentOrder) {
+    try {
+      // 2) Open Cashfree Checkout (modal).
+      const cashfree = await load({ mode: order.mode === 'production' ? 'production' : 'sandbox' });
+      const result = await cashfree.checkout({
+        paymentSessionId: order.paymentSessionId,
+        redirectTarget: '_modal',
+      });
+
+      if (result?.error) {
+        this.purchasing.set(false);
+        this.toast.error('Payment was cancelled or failed.');
+        return;
+      }
+      if (!result?.paymentDetails) {
+        // user closed the modal without completing
+        this.purchasing.set(false);
+        return;
+      }
+
+      // 3) Verify with the backend (source of truth) → records the purchase + split.
+      this.api
+        .verifyPayment(this.id, order.orderId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: () => {
+            this.purchasing.set(false);
+            this.purchasedLocal.set(true);
+            this.toast.success('Payment successful — happy studying!');
+          },
+          error: () => this.purchasing.set(false),
+        });
+    } catch {
+      this.purchasing.set(false);
+      this.toast.error('Could not open the payment window.');
+    }
   }
 
   protected submitReview() {

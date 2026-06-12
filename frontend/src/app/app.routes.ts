@@ -104,6 +104,11 @@ export const routes: Routes = [
                 (m) => m.AdminTestManagerComponent,
               ),
           },
+          {
+            path: 'payouts',
+            loadComponent: () =>
+              import('@features/admin/payouts/admin-payouts.component').then((m) => m.AdminPayoutsComponent),
+          },
         ],
       },
     ],

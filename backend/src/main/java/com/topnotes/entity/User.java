@@ -89,6 +89,10 @@ public class User {
     @Builder.Default
     private Boolean marksheetApproved = false;
 
+    /** Seller payout destination (UPI VPA, e.g. name@bank). Collected for earnings payout. */
+    @Column(length = 100)
+    private String upiId;
+
     // ── Relationships ─────────────────────────────────────────
     @OneToMany(mappedBy = "seller", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default

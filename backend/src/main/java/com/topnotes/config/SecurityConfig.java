@@ -60,6 +60,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/health").permitAll()
+                // Payment gateway webhooks are authenticated by signature, not JWT
+                .requestMatchers("/payments/webhook/**").permitAll()
                 .requestMatchers(HttpMethod.GET,
                         "/notes",
                         "/notes/{id}",

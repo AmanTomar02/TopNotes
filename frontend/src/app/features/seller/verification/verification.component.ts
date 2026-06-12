@@ -237,6 +237,32 @@ type Stage = 'loading' | 'intro' | 'test' | 'result' | 'marksheet' | 'pending' |
               >Upload your first note</a
             >
           </div>
+
+          <div class="card card-pad" style="max-width:520px;margin:18px auto 0;">
+            <h3 style="font-size:var(--t-16);">Payout UPI</h3>
+            <p class="muted" style="font-size:13px;margin:4px 0 14px;">
+              Where your earnings get paid out. You can update this anytime.
+            </p>
+            <div class="field">
+              <label class="label" for="upi">UPI ID</label>
+              <input
+                id="upi"
+                class="input"
+                [value]="upiId()"
+                (input)="upiInput($any($event.target).value)"
+                placeholder="yourname@bank"
+                autocomplete="off"
+              />
+            </div>
+            <button
+              class="btn btn-primary btn-sm"
+              style="margin-top:12px;"
+              [disabled]="savingUpi() || !upiId()"
+              (click)="saveUpi()"
+            >
+              {{ savingUpi() ? 'Saving…' : upiSaved() ? 'Saved ✓' : 'Save UPI' }}
+            </button>
+          </div>
         }
       }
     }
@@ -254,6 +280,9 @@ export class VerificationComponent {
   protected score = signal(0);
   protected busy = signal(false);
   protected marksheetFile = signal<File | null>(null);
+  protected upiId = signal('');
+  protected savingUpi = signal(false);
+  protected upiSaved = signal(false);
 
   protected answeredCount = computed(() => Object.keys(this.answers()).length);
   protected progress = computed(() => {
@@ -264,6 +293,32 @@ export class VerificationComponent {
 
   constructor() {
     this.loadStatus();
+    this.api
+      .getUpiId()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (r) => this.upiId.set(r.data ?? ''), error: () => {} });
+  }
+
+  protected upiInput(v: string) {
+    this.upiId.set(v);
+    this.upiSaved.set(false);
+  }
+
+  protected saveUpi() {
+    const v = this.upiId().trim();
+    if (!v || this.savingUpi()) return;
+    this.savingUpi.set(true);
+    this.api
+      .setUpiId(v)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.savingUpi.set(false);
+          this.upiSaved.set(true);
+          this.toast.success('Payout UPI saved');
+        },
+        error: () => this.savingUpi.set(false),
+      });
   }
 
   private loadStatus() {
